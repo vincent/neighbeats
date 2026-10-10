@@ -1,0 +1,20 @@
+# Copy to config.yaml and adjust. Unknown keys are rejected on purpose.
+
+# SQLite database (created on first run).
+db_path: data/neighbeats.sqlite
+
+# Folders to scan, as this process sees them (inside Docker: the mount point).
+music_roots:
+  - /music
+
+# Audio extensions to index. Default shown.
+extensions: [.mp3, .m4a, .aac, .flac, .ogg, .opus, .wav]
+
+# Concurrent tag readers. Raise it on network mounts, lower it on a slow CPU.
+scan_workers: 8
+
+# How Jellyfin sees the same files. Used from M3 (export) and M4 (Jellyfin sync).
+# Longest matching prefix wins; both sides must be absolute.
+path_map:
+  - local: /music
+    remote: /data/music

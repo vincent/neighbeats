@@ -1,0 +1,43 @@
+# M2: Neighbour search and `similar`
+
+Goal: fast "what sounds like this" over all embeddings, and a way to judge
+embedding quality by ear before building paths on it.
+
+## Why this is simple
+
+The library has 25,125 tracks. With a vector of a few hundred to ~1,300 floats
+that is roughly 30-130 MB, which fits in memory with room to spare, and an exact
+scan over every vector is a matter of milliseconds to tens of milliseconds
+(estimate; measure it). So:
+
+- **No approximate index (HNSW) and no index persistence.** Exact search has
+  perfect recall and nothing to tune or rebuild.
+- Load all vectors from SQLite into one contiguous `[]float32` at startup
+  (normalised, so cosine similarity is a dot product).
+- Hide it behind a small `Neighbours(id, k)` interface so an approximate index can
+  replace it if the library ever grows by an order of magnitude (see
+  [later](later.md)).
+
+## Tasks
+
+- [ ] `internal/vecindex`: load vectors, exact top-k by dot product, optional
+      per-artist cap. Unit tests against a hand-made set of vectors.
+- [ ] Benchmark: query time and load time at 25k x the chosen vector size on the
+      NAS CPU (no AVX2). Only if a query takes more than ~100 ms, look at
+      unrolling the loop or using the GPU; do not do it earlier.
+- [ ] Optional: precompute the full k-NN graph (top 10 per track) once and cache it
+      in SQLite, if building neighbours on the fly turns out slow in M3. 25k
+      queries x 25k vectors is a one-off job, not a per-run cost.
+- [ ] `similar <track> [-n 20]` prints neighbours with distance, title, artist.
+      Track lookup by path, by "artist - title" search, or by recording MBID.
+- [ ] Similarity function: start from the reference's `exp(-k * distance)` shape and
+      tune `k` so scores spread usefully between 0 and 1.
+- [ ] Judge quality: 20 seed tracks, listen to the top 10 each, note failures
+      (same-artist flooding, genre jumps, silence/intro artefacts).
+- [ ] Mitigations if needed: cap results per artist; use several clips per track;
+      normalise vectors; combine with tempo/key if the embedding ignores them.
+
+## Exit criteria
+
+- `similar` answers in well under a second.
+- A written note on what the embedding gets right and wrong, with examples.

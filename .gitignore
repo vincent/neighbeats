@@ -1,0 +1,8 @@
+/data/
+/config.yaml
+/neighbeats
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.m3u
+*.m3u8
