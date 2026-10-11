@@ -27,8 +27,10 @@ Goal: the headline feature. A playlist that moves from A to B.
 - [ ] Track resolution for A and B (search by text, path, or MBID); clear message
       when ambiguous.
 - [ ] `path A B [--length N] [--avoid-artist X] [--out file.m3u8]`.
-- [ ] M3U8 writer: `#EXTM3U`, `#EXTINF` with duration and "artist - title", paths
-      translated with `pathmap` for the target system (`--for jellyfin|local`).
+- [x] M3U8 writer (`internal/m3u`): `#EXTM3U`, `#EXTINF` with duration and
+      "artist - title", paths translated with `path_map` to the media server's view
+      (always the remote side; no `--for` flag). First use: `similar -out file.m3u8`
+      writes the seed then its neighbours. `path` will reuse the writer.
 - [ ] Optional: `--explain` prints the reason per hop.
 - [ ] Optional: "waypoint" mode, A -> W -> B, by chaining two searches.
 

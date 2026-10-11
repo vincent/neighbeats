@@ -32,6 +32,7 @@ docker compose run --rm neighbeats scan                # incremental; safe to re
 docker compose run --rm neighbeats stats               # formats, MusicBrainz and lyrics coverage
 docker compose run --rm neighbeats analyze             # embeddings (GPU if available, else CPU)
 docker compose run --rm neighbeats similar "yann tiersen valse"   # what sounds like it (after analyze)
+docker compose run --rm neighbeats similar -id 123 -out /data/mix.m3u8   # same, as a playlist (Jellyfin paths via path_map)
 docker compose run --rm neighbeats lyrics search silver sea
 ```
 

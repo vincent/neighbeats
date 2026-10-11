@@ -139,3 +139,22 @@ func DecodeVector(b []byte) ([]float32, error) {
 	}
 	return v, nil
 }
+
+// Durations returns the track length in seconds of every embedded track.
+func (s *Store) Durations(ctx context.Context, model string) (map[int64]float64, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT track_id, duration FROM embeddings WHERE model = ?`, model)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[int64]float64)
+	for rows.Next() {
+		var id int64
+		var d float64
+		if err := rows.Scan(&id, &d); err != nil {
+			return nil, err
+		}
+		out[id] = d
+	}
+	return out, rows.Err()
+}

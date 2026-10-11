@@ -6,10 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincentlark/neighbeats/internal/m3u"
+	"github.com/vincentlark/neighbeats/internal/pathmap"
 	"github.com/vincentlark/neighbeats/internal/store"
 	"github.com/vincentlark/neighbeats/internal/vecindex"
 )
@@ -44,6 +47,7 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
 	id := fs.Int64("id", 0, "seed track id (from an earlier listing)")
 	k := fs.Float64("k", defaultK, "falloff of the score: exp(-k * (1 - cosine))")
+	out := fs.String("out", "", "also write the seed and its neighbours as an M3U8 playlist")
 	words, err := parseInterspersed(fs, args)
 	if err != nil {
 		return err
@@ -51,7 +55,7 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	if *id == 0 && len(words) == 0 {
 		return errors.New("usage: neighbeats similar [-n N] [-max-per-artist N] [-raw] [-id N | path | recording-mbid | words...]")
 	}
-	_, st, err := open(cfgPath)
+	cfg, st, err := open(cfgPath)
 	if err != nil {
 		return err
 	}
@@ -112,6 +116,11 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	for i, h := range hits {
 		fmt.Fprintf(stdout, "%3d  %.2f  cos %5.2f  %s  (id %d)\n", i+1, vecindex.Score(h.Cosine, *k), h.Cosine, label(rows[h.ID]), h.ID)
 	}
+	if *out != "" {
+		if err := exportPlaylist(ctx, st, cfg.PathMapper(), *out, rows, ids, stderr); err != nil {
+			return err
+		}
+	}
 	fmt.Fprintf(stderr, "searched %d tracks in %s (index load %s)\n", ix.Len(), search.Round(100*time.Microsecond), load.Round(time.Millisecond))
 	return nil
 }
@@ -145,4 +154,40 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 		words = append(words, rest[0])
 		args = rest[1:]
 	}
+}
+
+// exportPlaylist writes the tracks, in the order of ids, as an M3U8 with the
+// paths as the media server sees them (path_map).
+func exportPlaylist(ctx context.Context, st *store.Store, pm *pathmap.Mapper, out string,
+	rows map[int64]store.TrackRow, ids []int64, stderr io.Writer) error {
+	durations, err := st.Durations(ctx, embed.ModelID)
+	if err != nil {
+		return err
+	}
+	var entries []m3u.Entry
+	unmapped := 0
+	for _, id := range ids {
+		r := rows[id]
+		p, ok := pm.ToRemote(r.Path)
+		if !ok {
+			unmapped++
+		}
+		entries = append(entries, m3u.Entry{Path: p, Artist: r.Artist, Title: r.Title, Duration: durations[id]})
+	}
+	if unmapped > 0 {
+		fmt.Fprintf(stderr, "warning: %d paths matched no path_map entry and are written as stored\n", unmapped)
+	}
+	f, err := os.Create(out)
+	if err != nil {
+		return err
+	}
+	if err := m3u.Write(f, entries); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	fmt.Fprintf(stderr, "wrote %d tracks to %s\n", len(entries), out)
+	return nil
 }
