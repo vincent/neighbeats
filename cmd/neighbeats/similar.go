@@ -22,6 +22,31 @@ import (
 // into the 0..1 score shown by `similar` (see docs/roadmap/M2-neighbour-index.md).
 const defaultK = 2.3
 
+// defaultMaxMinutes leaves out tracks that are probably mistagged audiobooks,
+// DJ mixes or radio shows.
+const defaultMaxMinutes = 15
+
+// longTracks returns a filter for tracks longer than maxMin minutes (nil when
+// the limit is off) and how many embedded tracks it removes. Unknown
+// durations are kept.
+func longTracks(ctx context.Context, st *store.Store, maxMin float64) (func(int64) bool, int, error) {
+	if maxMin <= 0 {
+		return nil, 0, nil
+	}
+	durations, err := st.Durations(ctx, embed.ModelID)
+	if err != nil {
+		return nil, 0, err
+	}
+	limit := maxMin * 60
+	n := 0
+	for _, d := range durations {
+		if d > limit {
+			n++
+		}
+	}
+	return func(id int64) bool { return durations[id] > limit }, n, nil
+}
+
 // loadIndex reads every embedding of the current model into memory.
 func loadIndex(ctx context.Context, st *store.Store, raw bool) (*vecindex.Index, error) {
 	embs, err := st.Embeddings(ctx, embed.ModelID)
@@ -44,6 +69,7 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	fs.SetOutput(stderr)
 	n := fs.Int("n", 20, "number of neighbours")
 	perArtist := fs.Int("max-per-artist", 2, "keep at most N tracks per artist (0 = no cap)")
+	maxMin := fs.Float64("max-minutes", defaultMaxMinutes, "leave out tracks longer than N minutes (0 = no limit)")
 	adjacent := fs.Bool("allow-adjacent", false, "allow consecutive results by the same artist")
 	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
 	id := fs.Int64("id", 0, "seed track id (from an earlier listing)")
@@ -76,13 +102,17 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	}
 	load := time.Since(t0)
 
-	var filter vecindex.Filter
+	exclude, nLong, err := longTracks(ctx, st, *maxMin)
+	if err != nil {
+		return err
+	}
+	filter := vecindex.Filter{Exclude: exclude}
 	if *perArtist > 0 || !*adjacent {
 		keys, err := st.ArtistKeys(ctx)
 		if err != nil {
 			return err
 		}
-		filter = vecindex.Filter{MaxPerArtist: *perArtist, NoAdjacent: !*adjacent, Group: func(id int64) string { return keys[id] }}
+		filter = vecindex.Filter{MaxPerArtist: *perArtist, NoAdjacent: !*adjacent, Group: func(id int64) string { return keys[id] }, Exclude: exclude}
 	}
 	t0 = time.Now()
 	hits, err := ix.Search(seed, *n, filter)
@@ -107,6 +137,9 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 		if err := exportPlaylist(ctx, st, cfg.PathMapper(), *out, rows, ids, stderr); err != nil {
 			return err
 		}
+	}
+	if nLong > 0 {
+		fmt.Fprintf(stderr, "left out %d tracks longer than %g min (-max-minutes)\n", nLong, *maxMin)
 	}
 	fmt.Fprintf(stderr, "searched %d tracks in %s (index load %s)\n", ix.Len(), search.Round(100*time.Microsecond), load.Round(time.Millisecond))
 	return nil

@@ -71,3 +71,10 @@ Default `smooth 0.5`. Dev slice, 10 tracks, four pairs: mean hop cosine 0.31-0.4
 0.44-0.47, weakest hop 0.02-0.13 -> 0.23-0.37, hops under 0.30: 11 of 36 -> 3 of 36.
 `path` prints these figures on stderr (`hops: mean cosine ...`). To verify on the
 real library with 100 tracks: compare `-smooth 0`, `0.5` and `1`.
+
+Real library, 100 tracks, four modes (NAS, 2026-10-11): `-smooth 0.5` mean hop cosine
+0.70-0.71, weakest 0.40-0.49, none of 99 hops under 0.30; `-smooth 1` mean 0.72-0.73,
+weakest 0.47-0.52. Before smoothing the tail dropped to 0.09-0.3. The gain from 0.5 to
+1 is about 0.01, so the default stays 0.5 (less pull towards the previous track). The
+number of "played today" tracks in the comfort route fell from about 20 to 1 with the
+heavier taste weight.

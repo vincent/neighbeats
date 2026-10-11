@@ -158,6 +158,8 @@ type Filter struct {
 	// the best-ranked track of a different group instead.
 	NoAdjacent bool
 	Group      func(id int64) string
+	// Exclude drops tracks from the results. May be nil.
+	Exclude func(id int64) bool
 }
 
 // Search returns up to k neighbours of id under the filter.
@@ -232,7 +234,7 @@ func (ix *Index) search(q []float32, p, k int, f Filter) []Neighbour {
 	}
 	h := make(minHeap, 0, k+1)
 	for i := range ix.ids {
-		if i == p {
+		if i == p || (f.Exclude != nil && f.Exclude(ix.ids[i])) {
 			continue
 		}
 		s := ix.dot(q, i)
@@ -253,7 +255,7 @@ func (ix *Index) search(q []float32, p, k int, f Filter) []Neighbour {
 func (ix *Index) searchCapped(p int, q []float32, k int, f Filter) []Neighbour {
 	all := make([]Neighbour, 0, len(ix.ids)-1)
 	for i := range ix.ids {
-		if i != p {
+		if i != p && (f.Exclude == nil || !f.Exclude(ix.ids[i])) {
 			all = append(all, Neighbour{ix.ids[i], ix.dot(q, i)})
 		}
 	}

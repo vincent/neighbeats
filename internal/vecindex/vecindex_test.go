@@ -124,6 +124,30 @@ func TestNoAdjacent(t *testing.T) {
 	}
 }
 
+func TestExclude(t *testing.T) {
+	ids, vs := circle(0, 5, 10, 15, 60)
+	ix, _ := Build(ids, vs, Options{})
+	skip := func(id int64) bool { return id == 11 || id == 13 }
+	artist := map[int64]string{}
+	for name, f := range map[string]Filter{
+		"plain":  {Exclude: skip},
+		"capped": {MaxPerArtist: 2, Group: func(id int64) string { return artist[id] }, Exclude: skip},
+	} {
+		got, err := ix.Search(10, 4, f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(got) == 0 {
+			t.Fatalf("%s: no results", name)
+		}
+		for _, n := range got {
+			if skip(n.ID) {
+				t.Errorf("%s: excluded track %d returned", name, n.ID)
+			}
+		}
+	}
+}
+
 func TestScore(t *testing.T) {
 	if Score(1, 2.3) != 1 {
 		t.Error("identical tracks must score 1")

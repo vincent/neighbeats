@@ -31,6 +31,7 @@ func (g cappedGraph) Neighbours(id int64, k int) ([]vecindex.Neighbour, error) {
 func (g cappedGraph) Blend(a, b int64, t float64) ([]float32, error) { return g.ix.Blend(a, b, t) }
 
 func (g cappedGraph) SearchVec(q []float32, k int, f vecindex.Filter) ([]vecindex.Neighbour, error) {
+	f.Exclude = g.filter.Exclude
 	return g.ix.SearchVec(q, k, f)
 }
 
@@ -48,6 +49,7 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	hops := fs.Int("max-hops", def.MaxHops, "longest route, in hops")
 	nbrs := fs.Int("neighbours", def.Neighbours, "candidates considered per step")
 	perArtist := fs.Int("max-per-artist", def.MaxPerArtist, "at most N tracks per artist on the route (0 = no cap)")
+	maxMin := fs.Float64("max-minutes", defaultMaxMinutes, "leave out tracks longer than N minutes (0 = no limit)")
 	avoid := fs.String("avoid-artist", "", "never pass through artists whose name contains one of these (comma separated)")
 	hop := fs.Float64("hop-penalty", def.Hop, "extra cost per hop: higher gives shorter routes")
 	expand := fs.Int("max-expand", def.MaxExpand, "search effort: tracks expanded before giving up")
@@ -132,8 +134,16 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 		return err
 	}
 
+	exclude, nLong, err := longTracks(ctx, st, *maxMin)
+	if err != nil {
+		return err
+	}
+	if nLong > 0 {
+		fmt.Fprintf(stderr, "left out %d tracks longer than %g min (-max-minutes)\n", nLong, *maxMin)
+	}
+
 	t0 = time.Now()
-	g := cappedGraph{ix: ix, filter: vecindex.Filter{MaxPerArtist: 2, Group: group}}
+	g := cappedGraph{ix: ix, filter: vecindex.Filter{MaxPerArtist: 2, Group: group, Exclude: exclude}}
 	var r route.Route
 	if *length > 0 {
 		r, err = route.Spread(g, a, b, *length, opt)

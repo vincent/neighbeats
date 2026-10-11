@@ -68,3 +68,12 @@ scan over every vector is a matter of milliseconds to tens of milliseconds
 
 Still to do: the listening test (20 seeds x top 10) and the written quality note,
 which need your ears and the full library.
+
+## Long tracks (2026-10-11)
+
+`similar` and `path` leave out tracks longer than 15 minutes by default (mistagged
+audiobooks, DJ mixes, radio shows): `-max-minutes N`, 0 = no limit. The stored
+clip duration is used; tracks with an unknown duration are kept. The start and
+destination of `path` are always allowed, even when long. Implemented as
+`vecindex.Filter.Exclude`, so the neighbour lists and the `-length` candidate
+pools are filled with other tracks instead of being cut afterwards.
