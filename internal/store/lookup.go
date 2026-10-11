@@ -123,3 +123,50 @@ func (s *Store) ArtistKeys(ctx context.Context) (map[int64]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// DedupeKeys maps each track id to a key shared by copies of the same song:
+// the recording MBID, else "artist|title" lowercased. Tracks with neither
+// get no key.
+func (s *Store) DedupeKeys(ctx context.Context) (map[int64]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id,
+		CASE WHEN mbid_recording <> '' THEN mbid_recording
+		     WHEN title <> '' THEN lower(artist) || '|' || lower(title)
+		     ELSE '' END FROM tracks`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[int64]string)
+	for rows.Next() {
+		var id int64
+		var k string
+		if err := rows.Scan(&id, &k); err != nil {
+			return nil, err
+		}
+		if k != "" {
+			out[id] = k
+		}
+	}
+	return out, rows.Err()
+}
+
+// TrackIDsByArtist returns the ids of tracks whose artist contains the text
+// (case-insensitive).
+func (s *Store) TrackIDsByArtist(ctx context.Context, text string) ([]int64, error) {
+	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id FROM tracks WHERE artist LIKE ? ESCAPE '\'`, "%"+esc.Replace(text)+"%")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}

@@ -169,9 +169,66 @@ func (ix *Index) Search(id int64, k int, f Filter) ([]Neighbour, error) {
 	if k <= 0 {
 		return nil, nil
 	}
-	q := ix.row(p)
+	return ix.search(ix.row(p), p, k, f), nil
+}
+
+// SearchVec returns up to k tracks closest to an arbitrary query vector of
+// the index's dimension (it is normalised first), best first.
+func (ix *Index) SearchVec(q []float32, k int, f Filter) ([]Neighbour, error) {
+	if len(q) != ix.dim {
+		return nil, fmt.Errorf("query has %d values, want %d", len(q), ix.dim)
+	}
+	if k <= 0 {
+		return nil, nil
+	}
+	return ix.search(unit(q), -1, k, f), nil
+}
+
+// Blend returns the unit vector a fraction t of the way from track a to
+// track b (t=0 is a, t=1 is b) along the arc between them.
+func (ix *Index) Blend(a, b int64, t float64) ([]float32, error) {
+	pa, ok := ix.pos[a]
+	if !ok {
+		return nil, fmt.Errorf("track %d: %w", a, ErrUnknown)
+	}
+	pb, ok := ix.pos[b]
+	if !ok {
+		return nil, fmt.Errorf("track %d: %w", b, ErrUnknown)
+	}
+	ra, rb := ix.row(pa), ix.row(pb)
+	// Spherical interpolation, so equal steps in t are equal angles.
+	wa, wb := 1-t, t
+	if d := float64(dotf(ra, rb)); d < 0.9999 && d > -0.9999 {
+		omega := math.Acos(d)
+		wa, wb = math.Sin((1-t)*omega)/math.Sin(omega), math.Sin(t*omega)/math.Sin(omega)
+	}
+	out := make([]float32, ix.dim)
+	for i := range out {
+		out[i] = float32(wa*float64(ra[i]) + wb*float64(rb[i]))
+	}
+	return unit(out), nil
+}
+
+func unit(v []float32) []float32 {
+	var n float64
+	for _, x := range v {
+		n += float64(x) * float64(x)
+	}
+	out := append([]float32(nil), v...)
+	if n == 0 {
+		return out
+	}
+	inv := float32(1 / math.Sqrt(n))
+	for i := range out {
+		out[i] *= inv
+	}
+	return out
+}
+
+// search scans every track except position skip (-1 for none).
+func (ix *Index) search(q []float32, p, k int, f Filter) []Neighbour {
 	if (f.MaxPerArtist > 0 || f.NoAdjacent) && f.Group != nil {
-		return ix.searchCapped(p, q, k, f), nil
+		return ix.searchCapped(p, q, k, f)
 	}
 	h := make(minHeap, 0, k+1)
 	for i := range ix.ids {
@@ -188,7 +245,7 @@ func (ix *Index) Search(id int64, k int, f Filter) ([]Neighbour, error) {
 	}
 	out := []Neighbour(h)
 	sort.Slice(out, func(a, b int) bool { return better(out[a], out[b]) })
-	return out, nil
+	return out
 }
 
 // searchCapped scores everything, then walks down the ranking taking at most
@@ -262,4 +319,12 @@ func (h *minHeap) Pop() any {
 // distance. k controls how fast scores fall off (see DefaultK).
 func Score(cosine float32, k float64) float64 {
 	return math.Exp(-k * (1 - float64(cosine)))
+}
+
+func dotf(a, b []float32) float32 {
+	var s float32
+	for i := range a {
+		s += a[i] * b[i]
+	}
+	return s
 }

@@ -63,22 +63,8 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 
 	seed := *id
 	if seed == 0 {
-		query := strings.Join(words, " ")
-		rows, err := st.FindTracks(ctx, embed.ModelID, query, 15)
-		if err != nil {
+		if seed, err = resolveTrack(ctx, st, strings.Join(words, " "), stdout, stderr); err != nil {
 			return err
-		}
-		switch len(rows) {
-		case 0:
-			return fmt.Errorf("no embedded track matches %q (is it analysed? try `neighbeats stats`)", query)
-		case 1:
-			seed = rows[0].ID
-		default:
-			fmt.Fprintf(stderr, "%d tracks match %q; pick one with -id:\n", len(rows), query)
-			for _, r := range rows {
-				fmt.Fprintf(stdout, "  -id %-6d %s\n", r.ID, label(r))
-			}
-			return errors.New("ambiguous seed")
 		}
 	}
 
@@ -190,4 +176,24 @@ func exportPlaylist(ctx context.Context, st *store.Store, pm *pathmap.Mapper, ou
 	}
 	fmt.Fprintf(stderr, "wrote %d tracks to %s\n", len(entries), out)
 	return nil
+}
+
+// resolveTrack finds the one embedded track a path, recording MBID or words
+// refer to. Several matches are listed with their ids and reported as an error.
+func resolveTrack(ctx context.Context, st *store.Store, query string, stdout, stderr io.Writer) (int64, error) {
+	rows, err := st.FindTracks(ctx, embed.ModelID, query, 15)
+	if err != nil {
+		return 0, err
+	}
+	switch len(rows) {
+	case 0:
+		return 0, fmt.Errorf("no embedded track matches %q (is it analysed? try `neighbeats stats`)", query)
+	case 1:
+		return rows[0].ID, nil
+	}
+	fmt.Fprintf(stderr, "%d tracks match %q; pick one by id:\n", len(rows), query)
+	for _, r := range rows {
+		fmt.Fprintf(stdout, "  id %-6d %s\n", r.ID, label(r))
+	}
+	return 0, errors.New("ambiguous track")
 }

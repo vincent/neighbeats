@@ -33,6 +33,7 @@ Commands:
   lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
   analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
   similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-allow-adjacent] [-raw] <path|mbid|words...>
+  path      playlist travelling from one track to another: neighbeats path [-length N | -max-hops N] [-explain] [-out f.m3u8] <from> <to>
   stats     show what the index contains
   version   print the version
 
@@ -76,6 +77,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdAnalyze(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "similar":
 		err = cmdSimilar(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "path":
+		err = cmdPath(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":
