@@ -22,7 +22,7 @@ scan over every vector is a matter of milliseconds to tens of milliseconds
 
 - [x] `internal/vecindex`: load vectors, exact top-k by dot product, optional
       per-artist cap. Unit tests against a hand-made set of vectors.
-- [~] Benchmark (laptop done, NAS pending): query time and load time at 25k x the chosen vector size on the
+- [x] Benchmark (laptop and NAS done): query time and load time at 25k x the chosen vector size on the
       NAS CPU (no AVX2). Only if a query takes more than ~100 ms, look at
       unrolling the loop or using the GPU; do not do it earlier.
 - [ ] Optional: precompute the full k-NN graph (top 10 per track) once and cache it
@@ -53,8 +53,9 @@ scan over every vector is a matter of milliseconds to tens of milliseconds
   off by default so same-artist flooding stays visible while judging the embedding.
 - **Timing (i7-13620H, 25,000 x 1280, `go test -bench 25k ./internal/vecindex`):**
   12.6 ms per query, 17 ms with the artist cap. Reading and building the index for
-  the 500-track slice takes 16 ms. NAS (i7-3770K) figures still to measure; the
-  ~100 ms threshold for looking at SIMD or the GPU is far away on this machine.
+  the 500-track slice takes 16 ms. NAS (i7-3770K, no AVX2): 20.8 ms per
+  query, 25.5 ms with the cap, so the ~100 ms threshold for looking at SIMD or the GPU is
+  not close.
 - **Centring (500-track slice):** it does not change the ranking (top-1 same artist
   82%, top-10 71%, both ways) but removes the shared component, which squeezed all
   cosines into 0.3-0.8: random pairs sit at about 0.34 raw and -0.04 centred, rank-1
@@ -64,4 +65,4 @@ scan over every vector is a matter of milliseconds to tens of milliseconds
   push good neighbours towards 1; revisit when M3 sets its edge costs.
 
 Still to do: the listening test (20 seeds x top 10) and the written quality note,
-which need your ears and the full library; the NAS benchmark.
+which need your ears and the full library.

@@ -20,7 +20,7 @@ const maxErrLen = 200
 
 // Decoder yields a clip of a track. *audio.Decoder implements it.
 type Decoder interface {
-	MiddleClip(ctx context.Context, path string, clipSeconds float64, rate int) (audio.Clip, error)
+	MiddleClip(ctx context.Context, path string, clipSeconds float64, rate, minSamples int) (audio.Clip, error)
 }
 
 // Options configures a run.
@@ -113,7 +113,7 @@ func Run(ctx context.Context, st *store.Store, opt Options) (Result, error) {
 			defer workers.Done()
 			for t := range jobs {
 				t0 := time.Now()
-				clip, err := opt.Decoder.MiddleClip(ctx, t.Path, opt.ClipSeconds, embed.SampleRate)
+				clip, err := opt.Decoder.MiddleClip(ctx, t.Path, opt.ClipSeconds, embed.SampleRate, embed.MinSamples)
 				decodeNs.Add(int64(time.Since(t0)))
 				if err != nil {
 					if ctx.Err() == nil {

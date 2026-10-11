@@ -19,7 +19,7 @@ import (
 // clip for "short", and an error for "broken".
 type fakeDecoder struct{ calls atomic.Int64 }
 
-func (d *fakeDecoder) MiddleClip(_ context.Context, path string, _ float64, rate int) (audio.Clip, error) {
+func (d *fakeDecoder) MiddleClip(_ context.Context, path string, _ float64, rate, _ int) (audio.Clip, error) {
 	d.calls.Add(1)
 	switch {
 	case strings.Contains(path, "broken"):

@@ -90,8 +90,23 @@ Model chosen, clip length and position, vector size, ONNX Runtime version.
 | | CPU | 8 | 16.7 | |
 | | CPU | 15 | 19.4 | 388 ms / 32 ms / 51 ms / 0.6 ms |
 
-Bottleneck on this machine: ffmpeg decode (CPU). Still to do: the same table on
-the NAS (GTX 1060, i7-3770K) and for the full 25,125 tracks.
+Bottleneck on this machine: ffmpeg decode (CPU).
+
+NAS / VPS (i7-3770K, 8 threads), partial runs on the real library (25,379 files scanned in 1m18s,
+793 tag errors):
+
+| Provider | Tracks | Tracks/s | Per track, summed over workers (decode / mel / inference / write) | Failed |
+|---|---|---|---|---|
+| CPU (interrupted after 19m23s) | 5,028 of 25,379 | 4.17 | 627 ms / 66 ms / 239 ms / 1.2 ms | 179 (3.6%) |
+| GTX 1060 (CUDA), `-limit 100` | 100 | 11.35 | 516 ms / 36 ms / 26.7 ms / 0.5 ms | 30 (30%, to explain) |
+
+- GPU inference is 9x faster than the CPU's (27 ms vs 239 ms), and decode becomes the
+  bottleneck: 8 workers cap out near 8 / (0.52 + 0.04) = 14 tracks/s.
+- Full-library estimate: CPU only ~100 min (25,379 / 4.17); with the GPU ~30-40 min.
+- Open: why 3.6% (CPU) and 30% (GPU sample) of tracks failed. The scan also reported
+  793 tag errors (3.1%), so these are probably the same files; check
+  `SELECT error, COUNT(*) FROM embedding_errors GROUP BY error ORDER BY 2 DESC`.
+
 
 ### GPU troubleshooting
 
