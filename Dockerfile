@@ -11,6 +11,9 @@
 #     -v ./data:/data -v ./models:/models:ro -v /path/to/music:/music:ro \
 #     neighbeats analyze
 #
+# Host requirement for the GPU: NVIDIA driver >= 525 and the NVIDIA container
+# toolkit (CUDA 12 runs on older drivers through minor-version compatibility).
+#
 # The model is not baked in (CC BY-NC-SA): mount it at /models. config.example.yaml
 # already uses these container paths; compose.yaml sets up all the mounts.
 
@@ -52,11 +55,21 @@ RUN go build -ldflags "-s -w -X main.version=${VERSION}" -o /neighbeats ./cmd/ne
 FROM ${CUDA_IMAGE}
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+# The base image ships CUDA forward-compat libraries (cuda-compat-12-8, driver
+# 570). The container toolkit switches them on when the host driver is older,
+# but forward compatibility only works on datacenter GPUs: on a GeForce card
+# it fails with "CUDA failure 804: forward compatibility was attempted on non
+# supported HW". Remove them so the host driver (>= 525) is used directly, and
+# drop the image's "cuda>=12.8" start constraint, which only the compat libs
+# could satisfy on an older driver.
+RUN apt-get purge -y cuda-compat-12-8 && apt-get autoremove -y \
+ && rm -rf /usr/local/cuda/compat /var/lib/apt/lists/*
 COPY --from=ort /ort/lib/ /opt/onnxruntime/lib/
 COPY --from=build /neighbeats /usr/local/bin/neighbeats
 # ONNX Runtime finds libonnxruntime_providers_cuda.so next to the main library
 # or through the loader path.
 ENV LD_LIBRARY_PATH=/opt/onnxruntime/lib \
+    NVIDIA_DISABLE_REQUIRE=true \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 VOLUME ["/data"]
