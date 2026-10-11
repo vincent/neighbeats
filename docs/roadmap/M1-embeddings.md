@@ -103,7 +103,12 @@ NAS / VPS (i7-3770K, 8 threads), partial runs on the real library (25,379 files 
 - GPU inference is 9x faster than the CPU's (27 ms vs 239 ms), and decode becomes the
   bottleneck: 8 workers cap out near 8 / (0.52 + 0.04) = 14 tracks/s.
 - Full-library estimate: CPU only ~100 min (25,379 / 4.17); with the GPU ~30-40 min.
-- Open: why 3.6% (CPU) and 30% (GPU sample) of tracks failed. The scan also reported
+- **Full library (2026-10-11, NAS, GPU):** 25,255 of 25,379 tracks embedded (99.5%),
+  124 failed. Earlier failure rates of 3.6-30% were mostly file permissions on the
+  share (old errors hid the cause); fixing them and retrying with `-retry-errors`
+  cleared most. The remaining 124 are to be classified (see the error breakdown
+  query below).
+- Open (partly answered above): why 3.6% (CPU) and 30% (GPU sample) of tracks failed. The scan also reported
   793 tag errors (3.1%), so these are probably the same files; check
   `SELECT error, COUNT(*) FROM embedding_errors GROUP BY error ORDER BY 2 DESC`.
 

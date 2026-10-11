@@ -32,7 +32,7 @@ Commands:
   scan      index the music folders and sibling .lrc lyrics (incremental)
   lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
   analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
-  similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-raw] <path|mbid|words...>
+  similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-allow-adjacent] [-raw] <path|mbid|words...>
   stats     show what the index contains
   version   print the version
 

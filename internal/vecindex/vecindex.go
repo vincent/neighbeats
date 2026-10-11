@@ -154,7 +154,10 @@ type Filter struct {
 	// Group maps a track id to its group, usually the artist; an empty group
 	// is never capped.
 	MaxPerArtist int
-	Group        func(id int64) string
+	// NoAdjacent keeps two consecutive results from sharing a group, taking
+	// the best-ranked track of a different group instead.
+	NoAdjacent bool
+	Group      func(id int64) string
 }
 
 // Search returns up to k neighbours of id under the filter.
@@ -167,7 +170,7 @@ func (ix *Index) Search(id int64, k int, f Filter) ([]Neighbour, error) {
 		return nil, nil
 	}
 	q := ix.row(p)
-	if f.MaxPerArtist > 0 && f.Group != nil {
+	if (f.MaxPerArtist > 0 || f.NoAdjacent) && f.Group != nil {
 		return ix.searchCapped(p, q, k, f), nil
 	}
 	h := make(minHeap, 0, k+1)
@@ -199,16 +202,33 @@ func (ix *Index) searchCapped(p int, q []float32, k int, f Filter) []Neighbour {
 	}
 	sort.Slice(all, func(a, b int) bool { return better(all[a], all[b]) })
 	count := map[string]int{}
+	used := make([]bool, len(all))
 	out := make([]Neighbour, 0, k)
-	for _, n := range all {
-		if g := f.Group(n.ID); g != "" {
-			if count[g] >= f.MaxPerArtist {
+	last := ""
+	for len(out) < k {
+		picked := false
+		for i, n := range all {
+			if used[i] {
 				continue
 			}
-			count[g]++
+			g := f.Group(n.ID)
+			if g != "" {
+				if f.MaxPerArtist > 0 && count[g] >= f.MaxPerArtist {
+					used[i] = true // can never be taken again
+					continue
+				}
+				if f.NoAdjacent && g == last {
+					continue
+				}
+				count[g]++
+			}
+			used[i] = true
+			out = append(out, n)
+			last = g
+			picked = true
+			break
 		}
-		out = append(out, n)
-		if len(out) == k {
+		if !picked {
 			break
 		}
 	}

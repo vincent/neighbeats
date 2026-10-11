@@ -49,8 +49,10 @@ scan over every vector is a matter of milliseconds to tens of milliseconds
   per-artist cap. Vectors are mean-centred then L2-normalised at load; nothing is
   persisted. `Score(cosine, k)` is `exp(-k * (1 - cosine))`.
 - `neighbeats similar [-n N] [-max-per-artist N] [-raw] [-k K] <path | recording MBID | words...>`
-  (flags may go anywhere). Several matches list ids; pick one with `-id`. The cap is
-  off by default so same-artist flooding stays visible while judging the embedding.
+  (flags may go anywhere). Several matches list ids; pick one with `-id`. The cap
+  defaults to 2 per artist (0 = off, to see flooding) and consecutive results never
+  share an artist (`-allow-adjacent` turns that off), after a first listening check
+  on the full library looked good.
 - **Timing (i7-13620H, 25,000 x 1280, `go test -bench 25k ./internal/vecindex`):**
   12.6 ms per query, 17 ms with the artist cap. Reading and building the index for
   the 500-track slice takes 16 ms. NAS (i7-3770K, no AVX2): 20.8 ms per

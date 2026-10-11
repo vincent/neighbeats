@@ -105,6 +105,25 @@ func TestMaxPerArtist(t *testing.T) {
 	}
 }
 
+func TestNoAdjacent(t *testing.T) {
+	ids, vs := circle(0, 5, 10, 15, 60)
+	ix, _ := Build(ids, vs, Options{})
+	artist := map[int64]string{11: "a", 12: "a", 13: "b", 14: "a"}
+	f := Filter{NoAdjacent: true, Group: func(id int64) string { return artist[id] }}
+	got, err := ix.Search(10, 4, f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i < len(got); i++ {
+		if artist[got[i].ID] == artist[got[i-1].ID] {
+			t.Fatalf("adjacent same artist in %v", got)
+		}
+	}
+	if len(got) < 3 {
+		t.Fatalf("got %v", got)
+	}
+}
+
 func TestScore(t *testing.T) {
 	if Score(1, 2.3) != 1 {
 		t.Error("identical tracks must score 1")

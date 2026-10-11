@@ -39,7 +39,8 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	fs := flag.NewFlagSet("similar", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	n := fs.Int("n", 20, "number of neighbours")
-	perArtist := fs.Int("max-per-artist", 0, "keep at most N tracks per artist (0 = no cap)")
+	perArtist := fs.Int("max-per-artist", 2, "keep at most N tracks per artist (0 = no cap)")
+	adjacent := fs.Bool("allow-adjacent", false, "allow consecutive results by the same artist")
 	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
 	id := fs.Int64("id", 0, "seed track id (from an earlier listing)")
 	k := fs.Float64("k", defaultK, "falloff of the score: exp(-k * (1 - cosine))")
@@ -85,12 +86,12 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	load := time.Since(t0)
 
 	var filter vecindex.Filter
-	if *perArtist > 0 {
+	if *perArtist > 0 || !*adjacent {
 		keys, err := st.ArtistKeys(ctx)
 		if err != nil {
 			return err
 		}
-		filter = vecindex.Filter{MaxPerArtist: *perArtist, Group: func(id int64) string { return keys[id] }}
+		filter = vecindex.Filter{MaxPerArtist: *perArtist, NoAdjacent: !*adjacent, Group: func(id int64) string { return keys[id] }}
 	}
 	t0 = time.Now()
 	hits, err := ix.Search(seed, *n, filter)
