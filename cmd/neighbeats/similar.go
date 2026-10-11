@@ -1,0 +1,147 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"strings"
+	"time"
+
+	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincentlark/neighbeats/internal/vecindex"
+)
+
+// defaultK is the exp(-k*distance) falloff used to turn cosine similarity
+// into the 0..1 score shown by `similar` (see docs/roadmap/M2-neighbour-index.md).
+const defaultK = 2.3
+
+// loadIndex reads every embedding of the current model into memory.
+func loadIndex(ctx context.Context, st *store.Store, raw bool) (*vecindex.Index, error) {
+	embs, err := st.Embeddings(ctx, embed.ModelID)
+	if err != nil {
+		return nil, err
+	}
+	if len(embs) == 0 {
+		return nil, errors.New("no embeddings yet; run `neighbeats analyze`")
+	}
+	ids := make([]int64, len(embs))
+	vecs := make([][]float32, len(embs))
+	for i, e := range embs {
+		ids[i], vecs[i] = e.TrackID, e.Vector
+	}
+	return vecindex.Build(ids, vecs, vecindex.Options{Center: !raw})
+}
+
+func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("similar", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	n := fs.Int("n", 20, "number of neighbours")
+	perArtist := fs.Int("max-per-artist", 0, "keep at most N tracks per artist (0 = no cap)")
+	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
+	id := fs.Int64("id", 0, "seed track id (from an earlier listing)")
+	k := fs.Float64("k", defaultK, "falloff of the score: exp(-k * (1 - cosine))")
+	words, err := parseInterspersed(fs, args)
+	if err != nil {
+		return err
+	}
+	if *id == 0 && len(words) == 0 {
+		return errors.New("usage: neighbeats similar [-n N] [-max-per-artist N] [-raw] [-id N | path | recording-mbid | words...]")
+	}
+	_, st, err := open(cfgPath)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+
+	seed := *id
+	if seed == 0 {
+		query := strings.Join(words, " ")
+		rows, err := st.FindTracks(ctx, embed.ModelID, query, 15)
+		if err != nil {
+			return err
+		}
+		switch len(rows) {
+		case 0:
+			return fmt.Errorf("no embedded track matches %q (is it analysed? try `neighbeats stats`)", query)
+		case 1:
+			seed = rows[0].ID
+		default:
+			fmt.Fprintf(stderr, "%d tracks match %q; pick one with -id:\n", len(rows), query)
+			for _, r := range rows {
+				fmt.Fprintf(stdout, "  -id %-6d %s\n", r.ID, label(r))
+			}
+			return errors.New("ambiguous seed")
+		}
+	}
+
+	t0 := time.Now()
+	ix, err := loadIndex(ctx, st, *raw)
+	if err != nil {
+		return err
+	}
+	load := time.Since(t0)
+
+	var filter vecindex.Filter
+	if *perArtist > 0 {
+		keys, err := st.ArtistKeys(ctx)
+		if err != nil {
+			return err
+		}
+		filter = vecindex.Filter{MaxPerArtist: *perArtist, Group: func(id int64) string { return keys[id] }}
+	}
+	t0 = time.Now()
+	hits, err := ix.Search(seed, *n, filter)
+	if err != nil {
+		return err
+	}
+	search := time.Since(t0)
+
+	ids := []int64{seed}
+	for _, h := range hits {
+		ids = append(ids, h.ID)
+	}
+	rows, err := st.TracksByIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "like: %s\n", label(rows[seed]))
+	for i, h := range hits {
+		fmt.Fprintf(stdout, "%3d  %.2f  cos %5.2f  %s  (id %d)\n", i+1, vecindex.Score(h.Cosine, *k), h.Cosine, label(rows[h.ID]), h.ID)
+	}
+	fmt.Fprintf(stderr, "searched %d tracks in %s (index load %s)\n", ix.Len(), search.Round(100*time.Microsecond), load.Round(time.Millisecond))
+	return nil
+}
+
+func label(r store.TrackRow) string {
+	switch {
+	case r.Artist != "" && r.Title != "":
+		return r.Artist + " - " + r.Title
+	case r.Title != "":
+		return r.Title
+	}
+	return r.Path
+}
+
+// parseInterspersed parses flags that may appear anywhere among the words
+// (`similar vitalic mort -n 5`); the standard flag package stops at the first
+// non-flag. Use "--" to pass a word that starts with a dash.
+func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
+	var words []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return nil, err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			return words, nil
+		}
+		if len(args) >= len(rest)+1 && args[len(args)-len(rest)-1] == "--" {
+			return append(words, rest...), nil
+		}
+		words = append(words, rest[0])
+		args = rest[1:]
+	}
+}

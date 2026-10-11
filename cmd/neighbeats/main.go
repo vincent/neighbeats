@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vincentlark/neighbeats/internal/config"
+	"github.com/vincentlark/neighbeats/internal/embed"
 	"github.com/vincentlark/neighbeats/internal/lyrics"
 	"github.com/vincentlark/neighbeats/internal/scan"
 	"github.com/vincentlark/neighbeats/internal/store"
@@ -31,6 +32,7 @@ Commands:
   scan      index the music folders and sibling .lrc lyrics (incremental)
   lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
   analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
+  similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-raw] <path|mbid|words...>
   stats     show what the index contains
   version   print the version
 
@@ -72,6 +74,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdLyrics(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "analyze":
 		err = cmdAnalyze(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "similar":
+		err = cmdSimilar(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":
@@ -196,6 +200,11 @@ func cmdStats(ctx context.Context, cfgPath string, stdout io.Writer) error {
 	fmt.Fprintf(stdout, "missing title:        %d\n", s.Tracks-s.WithTitle)
 	fmt.Fprintf(stdout, "missing artist:       %d\n", s.Tracks-s.WithArtistName)
 	fmt.Fprintf(stdout, "unreadable tags:      %d\n", s.TagErrors)
+	if e, f, err := st.EmbeddingStats(ctx, embed.ModelID); err != nil {
+		return err
+	} else {
+		fmt.Fprintf(stdout, "embedded:             %d  %s (%d failed)\n", e, pct(e, s.Tracks), f)
+	}
 	if l, err := st.LyricsStats(ctx); err != nil {
 		return err
 	} else {

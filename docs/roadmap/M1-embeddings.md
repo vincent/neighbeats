@@ -92,3 +92,12 @@ Model chosen, clip length and position, vector size, ONNX Runtime version.
 
 Bottleneck on this machine: ffmpeg decode (CPU). Still to do: the same table on
 the NAS (GTX 1060, i7-3770K) and for the full 25,125 tracks.
+
+### GPU troubleshooting
+
+- `CUDA failure 804: forward compatibility was attempted on non supported HW`: the
+  CUDA base image's forward-compat libraries were activated by the container toolkit
+  because the host driver is older than the image's CUDA. They do not work on GeForce
+  cards. The Dockerfile removes them; the host then needs an NVIDIA driver >= 525.
+- `analyze` prints `model ... on cuda` or `on cpu` as its first line; with
+  `provider: auto` the reason for a CPU fallback is logged just above it.

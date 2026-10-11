@@ -16,7 +16,7 @@ GTX 1060 6 GB), no Python at runtime if it can be avoided. The build needs cgo
 |---|-----------|--------|--------|
 | M0 | Library index: scan, tags, MBIDs, path mapping | **done** | [M0](docs/roadmap/M0-library-index.md) |
 | M1 | Audio embeddings for the whole library + throughput measurement | **in progress** (pipeline built; NAS/GPU run pending) | [M1](docs/roadmap/M1-embeddings.md) |
-| M2 | In-memory exact neighbour search + `similar` debug command | planned | [M2](docs/roadmap/M2-neighbour-index.md) |
+| M2 | In-memory exact neighbour search + `similar` debug command | **in progress** (search + `similar` built; listening test pending) | [M2](docs/roadmap/M2-neighbour-index.md) |
 | M3 | `path A B` + M3U8 export | planned | [M3](docs/roadmap/M3-path-and-export.md) |
 | M4 | Jellyfin sync + taste bias | planned | [M4](docs/roadmap/M4-jellyfin-taste.md) |
 | M5 | Tuning, upkeep, packaging | planned | [M5](docs/roadmap/M5-full-library.md) |

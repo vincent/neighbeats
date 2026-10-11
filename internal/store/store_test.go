@@ -118,3 +118,51 @@ func TestLastRunEmpty(t *testing.T) {
 		t.Errorf("got %v, %v", r, err)
 	}
 }
+
+func TestFindTracksAndTracksByIDs(t *testing.T) {
+	st, ctx := open(t), context.Background()
+	run, _ := st.StartRun(ctx, []string{"/m"})
+	a, b, c := track("/m/a.mp3"), track("/m/b.mp3"), track("/m/c.mp3")
+	a.Artist, a.Title, a.Album = "Yann Tiersen", "La Valse d'Amélie", "Amélie"
+	b.Artist, b.Title, b.Album = "Yann Tiersen", "Comptine", "Amélie"
+	c.Artist, c.Title = "Other", "100% Pure_Love" // LIKE wildcards in the data
+	if err := st.UpsertTracks(ctx, run, []Track{a, b, c}); err != nil {
+		t.Fatal(err)
+	}
+	ids := map[string]int64{}
+	rows, err := st.TracksByIDs(ctx, []int64{1, 2, 3})
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("TracksByIDs = %d rows, %v", len(rows), err)
+	}
+	for _, r := range rows {
+		ids[r.Path] = r.ID
+	}
+	// Only embedded tracks are findable.
+	for _, p := range []string{"/m/a.mp3", "/m/b.mp3", "/m/c.mp3"} {
+		if err := st.SaveEmbedding(ctx, Embedding{TrackID: ids[p], Model: "m", Vector: []float32{1}, Size: 10, MtimeNs: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cases := []struct {
+		q    string
+		want int
+	}{
+		{"tiersen", 2}, {"TIERSEN comptine", 1}, {"/m/a.mp3", 1}, {"r-/m/b.mp3", 1},
+		{"100% pure_", 1}, {"%", 1}, {"nothing here", 0}, {"  ", 0},
+	}
+	for _, tc := range cases {
+		got, err := st.FindTracks(ctx, "m", tc.q, 10)
+		if err != nil || len(got) != tc.want {
+			t.Errorf("FindTracks(%q) = %d rows (%v), want %d", tc.q, len(got), err, tc.want)
+		}
+	}
+	if got, _ := st.FindTracks(ctx, "other-model", "tiersen", 10); len(got) != 0 {
+		t.Error("found a track without an embedding for the model")
+	}
+	if got, _ := st.FindTracks(ctx, "m", "tiersen", 1); len(got) != 1 {
+		t.Error("limit not applied")
+	}
+	if rows[ids["/m/a.mp3"]].ArtistKey != "yann tiersen" {
+		t.Errorf("artist key = %q", rows[ids["/m/a.mp3"]].ArtistKey)
+	}
+}

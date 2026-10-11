@@ -31,6 +31,7 @@ export MUSIC_DIR=/path/to/your/music      # or put it in .env
 docker compose run --rm neighbeats scan                # incremental; safe to re-run
 docker compose run --rm neighbeats stats               # formats, MusicBrainz and lyrics coverage
 docker compose run --rm neighbeats analyze             # embeddings (GPU if available, else CPU)
+docker compose run --rm neighbeats similar "yann tiersen valse"   # what sounds like it (after analyze)
 docker compose run --rm neighbeats lyrics search silver sea
 ```
 
