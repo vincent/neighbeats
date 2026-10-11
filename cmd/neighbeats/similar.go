@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -179,8 +180,16 @@ func exportPlaylist(ctx context.Context, st *store.Store, pm *pathmap.Mapper, ou
 }
 
 // resolveTrack finds the one embedded track a path, recording MBID or words
-// refer to. Several matches are listed with their ids and reported as an error.
+// refer to, or a track id. Several matches are listed with their ids and reported as an error.
 func resolveTrack(ctx context.Context, st *store.Store, query string, stdout, stderr io.Writer) (int64, error) {
+	// An id as printed by earlier listings: "#3476", "id:3476" or just 3476.
+	if n, err := strconv.ParseInt(strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(query), "id:"), "#"), 10, 64); err == nil {
+		if _, ok, err := st.EmbeddedTrack(ctx, embed.ModelID, n); err != nil {
+			return 0, err
+		} else if ok {
+			return n, nil
+		}
+	}
 	rows, err := st.FindTracks(ctx, embed.ModelID, query, 15)
 	if err != nil {
 		return 0, err

@@ -87,6 +87,16 @@ func (s *Store) FindTracks(ctx context.Context, model, query string, limit int) 
 		` ORDER BY t.artist, t.album, t.track_no, t.title LIMIT ?`, args...)
 }
 
+// EmbeddedTrack returns the track with this id if it has an embedding.
+func (s *Store) EmbeddedTrack(ctx context.Context, model string, id int64) (TrackRow, bool, error) {
+	rows, err := s.queryTracks(ctx, `SELECT `+trackCols+` FROM tracks t JOIN embeddings e
+		ON e.track_id = t.id AND e.model = ? WHERE t.id = ?`, model, id)
+	if err != nil || len(rows) == 0 {
+		return TrackRow{}, false, err
+	}
+	return rows[0], true, nil
+}
+
 func (s *Store) queryTracks(ctx context.Context, q string, args ...any) ([]TrackRow, error) {
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {
