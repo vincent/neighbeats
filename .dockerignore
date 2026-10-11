@@ -1,0 +1,9 @@
+.git
+data
+models
+config.yaml
+neighbeats
+*.sqlite*
+*.m3u
+*.m3u8
+docs

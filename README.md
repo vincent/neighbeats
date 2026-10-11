@@ -18,18 +18,35 @@ indexed with their tags, MusicBrainz IDs and sibling `.lrc` lyrics; there are no
 embeddings, paths or playlists yet.
 See [ROADMAP.md](ROADMAP.md).
 
-## Quick start
+## Quick start (Docker)
+
+Everything runs in the container; you mount the config, the model, the data
+folder and your music.
 
 ```sh
-cp config.example.yaml config.yaml   # edit music_roots
-make build
-./neighbeats scan                    # incremental; safe to re-run
-./neighbeats stats                   # formats, MusicBrainz coverage, lyrics coverage
-./neighbeats lyrics search silver sea
-./neighbeats lyrics search -phrase "silver sea"
+cp config.example.yaml config.yaml        # container paths; set path_map.remote
+mkdir -p data models                      # put discogs-effnet-bsdynamic-1.onnx in ./models
+export MUSIC_DIR=/path/to/your/music      # or put it in .env
+
+docker compose run --rm neighbeats scan                # incremental; safe to re-run
+docker compose run --rm neighbeats stats               # formats, MusicBrainz and lyrics coverage
+docker compose run --rm neighbeats analyze             # embeddings (GPU if available, else CPU)
+docker compose run --rm neighbeats lyrics search silver sea
 ```
 
-`--config FILE` or `$NEIGHBEATS_CONFIG` selects another config file.
+`compose.yaml` documents the mounts and the GPU reservation. `--config FILE` or
+`$NEIGHBEATS_CONFIG` selects another config file (compose sets the latter).
+
+## Developing natively
+
+Needs Go, a C compiler (the ONNX binding uses cgo), `ffmpeg` and `libonnxruntime.so`
+on the loader path. Copy the same template and change `db_path`, `music_roots`,
+`path_map.local` and `model_path` to host paths (`config.yaml` is git-ignored):
+
+```sh
+cp config.example.yaml config.yaml
+make build && ./neighbeats scan
+```
 
 ## What `scan` does
 

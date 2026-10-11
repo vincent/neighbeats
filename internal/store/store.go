@@ -82,6 +82,33 @@ var migrations = []string{
 		INSERT INTO lyrics_fts(lyrics_fts, rowid, text) VALUES ('delete', old.track_id, old.text);
 		INSERT INTO lyrics_fts(rowid, text) VALUES (new.track_id, new.text);
 	END;`,
+
+	// v3: one embedding per track and model. size/mtime_ns copy the audio
+	// file's fingerprint so a changed file is re-embedded. Failures are kept
+	// so a re-run does not retry undecodable files forever.
+	`CREATE TABLE embeddings (
+		track_id   INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+		model      TEXT    NOT NULL,
+		vector     BLOB    NOT NULL,
+		dim        INTEGER NOT NULL,
+		patches    INTEGER NOT NULL,
+		clip_start REAL    NOT NULL,
+		clip_len   REAL    NOT NULL,
+		duration   REAL    NOT NULL,
+		size       INTEGER NOT NULL,
+		mtime_ns   INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		PRIMARY KEY (track_id, model)
+	);
+	CREATE TABLE embedding_errors (
+		track_id   INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+		model      TEXT    NOT NULL,
+		error      TEXT    NOT NULL,
+		size       INTEGER NOT NULL,
+		mtime_ns   INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		PRIMARY KEY (track_id, model)
+	);`,
 }
 
 // Store is a handle on the database.

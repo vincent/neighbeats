@@ -8,12 +8,14 @@ Library size: **25,125 tracks** (confirmed). That is small enough to keep everyt
 in memory and search exactly, so there is no approximate-search or sharding work.
 
 Constraints: Go, CLI only, Docker on a NAS (Debian, i7-3770K without AVX2,
-GTX 1060 6 GB), no Python at runtime if it can be avoided.
+GTX 1060 6 GB), no Python at runtime if it can be avoided. The build needs cgo
+(ONNX Runtime binding only); it happens inside the Docker build stage, see
+[M1](docs/roadmap/M1-embeddings.md).
 
 | # | Milestone | Status | Detail |
 |---|-----------|--------|--------|
 | M0 | Library index: scan, tags, MBIDs, path mapping | **done** | [M0](docs/roadmap/M0-library-index.md) |
-| M1 | Audio embeddings for the whole library + throughput measurement | next | [M1](docs/roadmap/M1-embeddings.md) |
+| M1 | Audio embeddings for the whole library + throughput measurement | **in progress** (pipeline built; NAS/GPU run pending) | [M1](docs/roadmap/M1-embeddings.md) |
 | M2 | In-memory exact neighbour search + `similar` debug command | planned | [M2](docs/roadmap/M2-neighbour-index.md) |
 | M3 | `path A B` + M3U8 export | planned | [M3](docs/roadmap/M3-path-and-export.md) |
 | M4 | Jellyfin sync + taste bias | planned | [M4](docs/roadmap/M4-jellyfin-taste.md) |
@@ -44,7 +46,7 @@ Later (not scheduled): [docs/roadmap/later.md](docs/roadmap/later.md).
 
 | Risk | Where | How it gets closed |
 |------|-------|--------------------|
-| Mel-spectrogram in Go does not match the model's reference preprocessing | M1 | Compare against the reference on a handful of tracks (dev-time script only) |
+| ~~Mel-spectrogram in Go does not match the model's reference preprocessing~~ | M1 | Closed: cosine 1.0000 against the reference on identical samples. Compare against the reference on a handful of tracks (dev-time script only) |
 | ONNX Runtime GPU build does not run on a GTX 1060 / the NAS driver | M1 | First task of M1, before any pipeline work |
 | ONNX Runtime or Go binaries assume AVX2, which the i7-3770K lacks | M1 | Same smoke test on the NAS CPU |
 | Decoding 25k MP3/AAC clips on 4 cores is the slow part | M1 | Measure on a 500-track slice first, then run the lot; tune clip length and worker count |

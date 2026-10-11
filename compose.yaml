@@ -1,0 +1,44 @@
+# neighbeats on a Docker host with the NVIDIA container toolkit.
+#
+# One-time setup:
+#   cp config.example.yaml config.yaml            # then edit path_map
+#   mkdir -p data models                          # put the ONNX model in ./models
+#   export MUSIC_DIR=/path/to/your/music          # or put it in a .env file
+#
+# Run commands (the entrypoint is `neighbeats`):
+#   docker compose run --rm neighbeats scan
+#   docker compose run --rm neighbeats analyze -limit 20   # quick GPU check
+#   docker compose run --rm neighbeats analyze
+#   docker compose run --rm neighbeats stats
+#
+# Without a GPU, drop the `deploy` block or run with `-provider cpu`; with
+# `provider: auto` (the default) a missing GPU falls back to the CPU anyway.
+
+services:
+  neighbeats:
+    build: .
+    image: neighbeats:local
+    environment:
+      NEIGHBEATS_CONFIG: /config/config.yaml
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./data:/data
+      - ./models:/models:ro
+      # Read-only; the container path must match music_roots in the config.
+      - type: bind
+        source: ${MUSIC_DIR:?set MUSIC_DIR to the folder that holds your music}
+        target: /music
+        read_only: true
+    # Files in ./data belong to you, not to root. Override in .env if your
+    # ids differ (`id -u`, `id -g`).
+    user: "${PUID:-1000}:${PGID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

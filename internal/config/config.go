@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -31,6 +32,18 @@ type Config struct {
 	ScanWorkers int `yaml:"scan_workers"`
 	// PathMap translates local paths to Jellyfin's view of the same files.
 	PathMap []pathmap.Mapping `yaml:"path_map"`
+
+	// ModelPath is the Discogs-EffNet ONNX file used by `analyze`.
+	ModelPath string `yaml:"model_path"`
+	// ORTLibrary is the libonnxruntime shared library; empty lets the system
+	// loader find it.
+	ORTLibrary string `yaml:"ort_library"`
+	// Provider is the ONNX execution provider: auto, cuda or cpu.
+	Provider string `yaml:"provider"`
+	// AnalyzeWorkers is the number of concurrent decode+mel workers.
+	AnalyzeWorkers int `yaml:"analyze_workers"`
+	// ClipSeconds is the length of the clip embedded from each track.
+	ClipSeconds float64 `yaml:"clip_seconds"`
 }
 
 // Resolve picks the config file path: explicit flag, then $NEIGHBEATS_CONFIG,
@@ -75,6 +88,28 @@ func (c *Config) applyDefaults() error {
 	}
 	if c.ScanWorkers < 1 || c.ScanWorkers > 256 {
 		return fmt.Errorf("scan_workers must be between 1 and 256, got %d", c.ScanWorkers)
+	}
+	if c.ModelPath == "" {
+		c.ModelPath = "models/discogs-effnet-bsdynamic-1.onnx"
+	}
+	switch c.Provider {
+	case "":
+		c.Provider = "auto"
+	case "auto", "cuda", "cpu":
+	default:
+		return fmt.Errorf("provider must be auto, cuda or cpu, got %q", c.Provider)
+	}
+	if c.AnalyzeWorkers == 0 {
+		c.AnalyzeWorkers = max(1, runtime.NumCPU()-1)
+	}
+	if c.AnalyzeWorkers < 1 || c.AnalyzeWorkers > 256 {
+		return fmt.Errorf("analyze_workers must be between 1 and 256, got %d", c.AnalyzeWorkers)
+	}
+	if c.ClipSeconds == 0 {
+		c.ClipSeconds = 30
+	}
+	if c.ClipSeconds < 5 || c.ClipSeconds > 300 {
+		return fmt.Errorf("clip_seconds must be between 5 and 300, got %g", c.ClipSeconds)
 	}
 	if len(c.Extensions) == 0 {
 		c.Extensions = append([]string(nil), defaultExtensions...)

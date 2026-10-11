@@ -30,6 +30,7 @@ Usage:
 Commands:
   scan      index the music folders and sibling .lrc lyrics (incremental)
   lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
+  analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
   stats     show what the index contains
   version   print the version
 
@@ -69,6 +70,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdScan(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "lyrics":
 		err = cmdLyrics(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "analyze":
+		err = cmdAnalyze(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":

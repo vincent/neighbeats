@@ -27,6 +27,9 @@ func TestLoadDefaults(t *testing.T) {
 	if c.ScanWorkers != 8 || c.DBPath == "" || len(c.Extensions) == 0 {
 		t.Errorf("defaults missing: %+v", c)
 	}
+	if c.Provider != "auto" || c.ClipSeconds != 30 || c.AnalyzeWorkers < 1 || c.ModelPath == "" {
+		t.Errorf("analyze defaults missing: %+v", c)
+	}
 	if !c.ExtensionSet()[".mp3"] {
 		t.Error("mp3 not in default extensions")
 	}
@@ -49,6 +52,8 @@ func TestLoadErrors(t *testing.T) {
 		"unknown key":   "music_roots: [/m]\nmusic_root: [/x]\n",
 		"bad workers":   "music_roots: [/m]\nscan_workers: -2\n",
 		"bad path map":  "music_roots: [/m]\npath_map:\n  - {local: m, remote: /x}\n",
+		"bad provider":  "music_roots: [/m]\nprovider: tpu\n",
+		"bad clip":      "music_roots: [/m]\nclip_seconds: 1\n",
 		"empty file":    "",
 	}
 	for name, body := range cases {

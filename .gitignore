@@ -6,3 +6,5 @@
 *.sqlite-shm
 *.m3u
 *.m3u8
+/models/
+/.env

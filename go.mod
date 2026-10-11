@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/yalue/onnxruntime_go v1.36.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.60.1
 )

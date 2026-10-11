@@ -1,9 +1,19 @@
 # Copy to config.yaml and adjust. Unknown keys are rejected on purpose.
+#
+# Paths are as seen INSIDE the container; compose.yaml mounts:
+#   ./config.yaml -> /config/config.yaml   
+#   ./data -> /data
+#   ./models      -> /models
+#   $MUSIC_DIR -> /music (read-only)
+# so normally only path_map.remote needs editing.
+#
+# Running without Docker?
+# Change db_path, music_roots, path_map.local and model_path to host paths.
 
 # SQLite database (created on first run).
-db_path: data/neighbeats.sqlite
+db_path: /data/neighbeats.sqlite
 
-# Folders to scan, as this process sees them (inside Docker: the mount point).
+# Folders to scan, as this process sees them.
 music_roots:
   - /music
 
@@ -13,8 +23,27 @@ extensions: [.mp3, .m4a, .aac, .flac, .ogg, .opus, .wav]
 # Concurrent tag readers. Raise it on network mounts, lower it on a slow CPU.
 scan_workers: 8
 
-# How Jellyfin sees the same files. Used from M3 (export) and M4 (Jellyfin sync).
+# How end-user sees the same files. Used from M3 (export) and M4 (Jellyfin sync).
 # Longest matching prefix wins; both sides must be absolute.
 path_map:
   - local: /music
     remote: /data/music
+
+# --- analyze (M1): music embeddings -------------------------------------------
+
+# Discogs-EffNet ONNX model (https://essentia.upf.edu/models/feature-extractors/discogs-effnet/
+# discogs-effnet-bsdynamic-1.onnx; CC BY-NC-SA, personal use).
+model_path: /models/discogs-effnet-bsdynamic-1.onnx
+
+# ONNX Runtime shared library. Not needed in Docker or when libonnxruntime.so is
+# on the loader path. The Go binding is built for ORT 1.29; newer 1.x usually works.
+# ort_library: /usr/local/lib/libonnxruntime.so
+
+# auto = CUDA when it initialises, otherwise the CPU; cuda = CUDA or fail; cpu.
+provider: auto
+
+# Concurrent ffmpeg decode + mel workers (default: CPU count - 1).
+# analyze_workers: 4
+
+# Seconds taken from the middle of each track (5-300).
+clip_seconds: 30

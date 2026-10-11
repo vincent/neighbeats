@@ -8,7 +8,7 @@
 - [x] YAML config with defaults and strict validation (unknown keys rejected).
 - [x] Path mapping between this tool's view and Jellyfin's, longest prefix wins,
       boundary-aware (`/music` never matches `/music2`). Not used until M3/M4.
-- [x] SQLite store (pure Go driver, no cgo), WAL mode, versioned migrations.
+- [x] SQLite store (pure Go driver; the project as a whole needs cgo since M1, for ONNX only), WAL mode, versioned migrations.
 - [x] Tag reader: title, artist, album, album artist, genre, year, track, disc,
       plus MusicBrainz recording, release track, artist, album artist, release,
       release group and work IDs.
