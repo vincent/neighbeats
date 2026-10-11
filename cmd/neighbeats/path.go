@@ -43,6 +43,8 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	fromID := fs.Int64("from-id", 0, "start track id (instead of the first argument)")
 	toID := fs.Int64("to-id", 0, "destination track id (instead of the second argument)")
 	length := fs.Int("length", 0, "exact number of tracks, spread evenly along the way (0 = cheapest route, any length)")
+	smooth := fs.Float64("smooth", def.Smooth, "with -length: weight of similarity to the previous track against closeness to the ideal waypoint (0 = nearest track to each waypoint)")
+	beam := fs.Int("beam", def.Beam, "with -length and -smooth: partial routes kept")
 	hops := fs.Int("max-hops", def.MaxHops, "longest route, in hops")
 	nbrs := fs.Int("neighbours", def.Neighbours, "candidates considered per step")
 	perArtist := fs.Int("max-per-artist", def.MaxPerArtist, "at most N tracks per artist on the route (0 = no cap)")
@@ -105,7 +107,7 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	opt := route.Options{
 		Neighbours: *nbrs, MaxHops: *hops, MaxExpand: *expand, Hop: *hop,
 		Base: def.Base, Scale: def.Scale, K: def.K, Heuristic: def.Heuristic,
-		MaxPerArtist: *perArtist, Group: group,
+		MaxPerArtist: *perArtist, Group: group, Smooth: *smooth, Beam: *beam,
 		Key:       func(id int64) string { return songs[id] },
 		Forbidden: map[int64]bool{},
 	}
@@ -178,6 +180,19 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 		if err := exportPlaylist(ctx, st, cfg.PathMapper(), *out, rows, ids, stderr); err != nil {
 			return err
 		}
+	}
+	if len(r.Steps) > 1 {
+		var sum float64
+		low := 0
+		minCos := float32(1)
+		for _, s := range r.Steps[1:] {
+			sum += float64(s.Cosine)
+			minCos = min(minCos, s.Cosine)
+			if s.Cosine < 0.3 {
+				low++
+			}
+		}
+		fmt.Fprintf(stderr, "hops: mean cosine %.2f, weakest %.2f, %d of %d under 0.30\n", sum/float64(len(r.Steps)-1), minCos, low, len(r.Steps)-1)
 	}
 	fmt.Fprintf(stderr, "searched in %s, %d tracks expanded (index load %s)\n", took.Round(time.Millisecond), r.Expanded, load.Round(time.Millisecond))
 	if !r.Found {

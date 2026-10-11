@@ -62,5 +62,22 @@ Checked against the live server (12.2.0), not memory:
   not heard for 30..120+ days (full from 120). A play shorter than 30 s (or half
   the track if shorter) is a skip; a track skipped in the last 30 days is kept out of
   the route (favourites excepted). `-explain` shows the taste term that mattered.
-  `-length` mode weighs taste lightly (cosine given up: 0.05 per cost unit).
+  `-length` mode weighs taste by giving up 0.12 cosine per cost unit among the 80 tracks nearest each waypoint (first try at 0.05 let "played today" tracks through).
 - Tuning is still to do on the full library: the weights above are first guesses.
+
+## First real sync (2026-10-11, NAS)
+
+10,742 played or favourite items for `vincent`: 10,734 matched by path (99.93%), 0 by
+MBID, 8 unmatched. The 8 are `.wma` and `.mpc` files, formats the scanner does not
+index (`extensions` default), so they are understood and left out. 10,734 tracks with
+taste, 260 favourites. (A first run with `path_map.remote: /music` matched nothing by
+path; it must equal the path Jellyfin reports, `/media/Music`.)
+
+## First listening check (2026-10-11, 100-track `-length` route, four modes)
+
+- Modes differ as designed: explore fills with `never played` tracks, rediscover shows
+  `not played for N months`, comfort picks favourites.
+- Found: the same song twice ("Fade to Black" / "Fade To Black", different recording
+  MBIDs). The duplicate key is now artist + normalised title (case, punctuation and
+  bracketed suffixes ignored), MBID only when there is no title.
+- Found: recent plays barely moved `-length` routes; taste weight raised (see above).

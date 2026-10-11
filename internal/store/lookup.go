@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"regexp"
 	"strings"
+	"unicode"
 )
 
 // TrackRow is a track as shown to the user.
@@ -135,13 +137,11 @@ func (s *Store) ArtistKeys(ctx context.Context) (map[int64]string, error) {
 }
 
 // DedupeKeys maps each track id to a key shared by copies of the same song:
-// the recording MBID, else "artist|title" lowercased. Tracks with neither
-// get no key.
+// the artist and the title with case, punctuation and bracketed suffixes
+// ("(2013 Mix)", "[Live]") ignored; tracks without a title fall back to the
+// recording MBID. Tracks with neither get no key.
 func (s *Store) DedupeKeys(ctx context.Context) (map[int64]string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,
-		CASE WHEN mbid_recording <> '' THEN mbid_recording
-		     WHEN title <> '' THEN lower(artist) || '|' || lower(title)
-		     ELSE '' END FROM tracks`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, mbid_recording, artist, title FROM tracks`)
 	if err != nil {
 		return nil, err
 	}
@@ -149,15 +149,35 @@ func (s *Store) DedupeKeys(ctx context.Context) (map[int64]string, error) {
 	out := make(map[int64]string)
 	for rows.Next() {
 		var id int64
-		var k string
-		if err := rows.Scan(&id, &k); err != nil {
+		var mbid, artist, title string
+		if err := rows.Scan(&id, &mbid, &artist, &title); err != nil {
 			return nil, err
 		}
-		if k != "" {
+		if k := SongKey(artist, title, mbid); k != "" {
 			out[id] = k
 		}
 	}
 	return out, rows.Err()
+}
+
+var bracketed = regexp.MustCompile(`\([^)]*\)|\[[^\]]*\]`)
+
+// SongKey is the identity of a song across albums and re-releases.
+func SongKey(artist, title, mbid string) string {
+	norm := func(x string) string {
+		x = bracketed.ReplaceAllString(strings.ToLower(x), " ")
+		x = strings.Map(func(r rune) rune {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) {
+				return r
+			}
+			return ' '
+		}, x)
+		return strings.Join(strings.Fields(x), " ")
+	}
+	if t := norm(title); t != "" {
+		return norm(artist) + "|" + t
+	}
+	return mbid
 }
 
 // TrackIDsByArtist returns the ids of tracks whose artist contains the text

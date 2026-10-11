@@ -236,3 +236,24 @@ func TestBiasChangesTheRoute(t *testing.T) {
 		t.Errorf("reason should name the taste term: %q", r)
 	}
 }
+
+func TestSpreadSmoothKeepsTheJourney(t *testing.T) {
+	ix := line(t, 91)
+	r, err := Spread(ix, 0, 90, 7, Options{Smooth: 0.5, Beam: 8})
+	if err != nil || !r.Found || len(r.Steps) != 7 {
+		t.Fatalf("%+v %v", r, err)
+	}
+	// Waypoints are 15 degrees apart; smoothing may shift a pick a little
+	// but never lets the route stall or skip ahead.
+	prev := int64(-1)
+	for i, s := range r.Steps {
+		want := int64(15 * i)
+		if d := s.ID - want; d < -4 || d > 4 {
+			t.Errorf("step %d at %d degrees, waypoint at %d", i, s.ID, want)
+		}
+		if s.ID <= prev {
+			t.Errorf("route goes backwards: %v", ids(r))
+		}
+		prev = s.ID
+	}
+}

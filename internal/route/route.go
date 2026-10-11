@@ -36,6 +36,12 @@ type Options struct {
 	K          float64 // score falloff, see vecindex.Score
 	Heuristic  float64 // cost estimate per unit of cosine distance to the target
 
+	// Spread only: weight of the distance to the previous track against the
+	// distance to the waypoint (0 = nearest track to each waypoint), and the
+	// number of partial routes kept.
+	Smooth float64
+	Beam   int
+
 	// MaxPerArtist limits tracks per group on a route (0 = no limit) and
 	// consecutive tracks never share a group. Group may be nil.
 	MaxPerArtist int
@@ -52,7 +58,7 @@ type Options struct {
 // Defaults returns the tuned defaults.
 func Defaults() Options {
 	return Options{Neighbours: 10, MaxHops: 12, MaxExpand: 400,
-		Base: 0.68, Scale: 1.18, Hop: 0.17, K: 2.3, Heuristic: 5, MaxPerArtist: 2}
+		Base: 0.68, Scale: 1.18, Hop: 0.17, K: 2.3, Heuristic: 5, MaxPerArtist: 2, Smooth: 0.5, Beam: 8}
 }
 
 func (o Options) withDefaults() Options {

@@ -212,3 +212,18 @@ func TestTasteRoundTrip(t *testing.T) {
 		t.Errorf("%v", m)
 	}
 }
+
+func TestSongKey(t *testing.T) {
+	a := SongKey("Dire Straits", "Fade to Black", "m1")
+	for _, title := range []string{"Fade To Black", "Fade to Black (2013 Mix)", "fade to black [Live]"} {
+		if SongKey("Dire Straits", title, "m2") != a {
+			t.Errorf("%q should match", title)
+		}
+	}
+	if SongKey("Dire Straits", "Romeo and Juliet", "") == a {
+		t.Error("different songs must differ")
+	}
+	if SongKey("X", "", "mbid") != "mbid" || SongKey("", "", "") != "" {
+		t.Error("fallbacks")
+	}
+}

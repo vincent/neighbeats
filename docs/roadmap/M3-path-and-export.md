@@ -58,3 +58,16 @@ Goal: the headline feature. A playlist that moves from A to B.
 - `neighbeats path [flags] <from> <to>` (text, path or MBID, or `-from-id/-to-id`),
   `-explain`, `-out file.m3u8`, `-avoid-artist a,b`, `-hop-penalty`, `-max-hops`.
 - Not done: waypoint mode A -> W -> B, the 10-pair listening test, tuning notes.
+
+## Smoother `-length` routes (2026-10-11)
+
+Picking the nearest track to each waypoint independently left hops that sound nothing
+alike (cosine down to 0.02-0.1 on the dev slice). `Spread` now runs a beam search
+(8 partial routes): each candidate (the 80 nearest to the waypoint) costs
+`(1 - cos to waypoint) + smooth * (1 - cos to the previous track)`, plus the same
+term to the destination at the end, plus the taste cost. Constraints are checked
+along every kept route. `-smooth 0` restores the old nearest-track pick; `-beam N`.
+Default `smooth 0.5`. Dev slice, 10 tracks, four pairs: mean hop cosine 0.31-0.42 ->
+0.44-0.47, weakest hop 0.02-0.13 -> 0.23-0.37, hops under 0.30: 11 of 36 -> 3 of 36.
+`path` prints these figures on stderr (`hops: mean cosine ...`). To verify on the
+real library with 100 tracks: compare `-smooth 0`, `0.5` and `1`.
