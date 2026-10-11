@@ -20,6 +20,8 @@ services:
     image: neighbeats:local
     environment:
       NEIGHBEATS_CONFIG: /config/config.yaml
+      # Jellyfin API key for sync-jellyfin; put it in .env, never in config.yaml.
+      NEIGHBEATS_JELLYFIN_KEY: ${NEIGHBEATS_JELLYFIN_KEY:-}
     volumes:
       - ./config.yaml:/config/config.yaml:ro
       - ./data:/data

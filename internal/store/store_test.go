@@ -166,3 +166,49 @@ func TestFindTracksAndTracksByIDs(t *testing.T) {
 		t.Errorf("artist key = %q", rows[ids["/m/a.mp3"]].ArtistKey)
 	}
 }
+
+func TestTasteRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	st := open(t)
+	if _, err := st.db.ExecContext(ctx, `INSERT INTO tracks (id, path, size, mtime_ns, format, seen_run, updated_at, mbid_recording)
+		VALUES (1,'/a.mp3',1,1,'mp3',1,1,'rec'),(2,'/b.mp3',1,1,'mp3',1,1,'rec'),(3,'/c.mp3',1,1,'mp3',1,1,'solo')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceTaste(ctx, "u", []Taste{{TrackID: 1, Plays: 3, Favourite: true, LastPlayed: 100}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceTaste(ctx, "u", []Taste{{TrackID: 3, Plays: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := st.LoadTaste(ctx, "u")
+	if len(got) != 1 || got[3].Plays != 1 {
+		t.Errorf("replace should drop old rows: %v", got)
+	}
+	if other, _ := st.LoadTaste(ctx, "v"); len(other) != 0 {
+		t.Errorf("users must be separate: %v", other)
+	}
+	rec, _ := st.RecordingIndex(ctx)
+	if len(rec) != 1 || rec["solo"] != 3 {
+		t.Errorf("ambiguous MBIDs must be left out: %v", rec)
+	}
+
+	n, err := st.AddPlayEvents(ctx, "u", []PlayEvent{{AtMs: 5, ItemID: "x", TrackID: 1, Seconds: 10}, {AtMs: 6, ItemID: "y", Seconds: 99}})
+	if err != nil || n != 2 {
+		t.Fatalf("%d %v", n, err)
+	}
+	if n, _ := st.AddPlayEvents(ctx, "u", []PlayEvent{{AtMs: 5, ItemID: "x", TrackID: 1, Seconds: 10}}); n != 0 {
+		t.Errorf("events must be idempotent, added %d", n)
+	}
+	if ms, _ := st.LastPlayEventMs(ctx, "u"); ms != 6 {
+		t.Errorf("last = %d", ms)
+	}
+	if ev, _ := st.PlayEvents(ctx, "u", 0); len(ev) != 1 || ev[0].TrackID != 1 {
+		t.Errorf("only matched events: %v", ev)
+	}
+	if err := st.SaveItemTracks(ctx, map[string]int64{"i1": 1, "i2": 0}); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := st.ItemTracks(ctx); m["i1"] != 1 || len(m) != 2 {
+		t.Errorf("%v", m)
+	}
+}

@@ -109,6 +109,33 @@ var migrations = []string{
 		updated_at INTEGER NOT NULL,
 		PRIMARY KEY (track_id, model)
 	);`,
+
+	// v4: listening history from Jellyfin, per Jellyfin user id. taste is a
+	// snapshot replaced by each sync; play_events accumulate (Playback
+	// Reporting) and are what skips are derived from; jellyfin_items caches
+	// which indexed track an item id is (NULL = no match, so it is not
+	// looked up again).
+	`CREATE TABLE taste (
+		user_id     TEXT    NOT NULL,
+		track_id    INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+		plays       INTEGER NOT NULL,
+		favourite   INTEGER NOT NULL,
+		last_played INTEGER NOT NULL,
+		synced_at   INTEGER NOT NULL,
+		PRIMARY KEY (user_id, track_id)
+	);
+	CREATE TABLE play_events (
+		user_id  TEXT    NOT NULL,
+		at_ms    INTEGER NOT NULL,
+		item_id  TEXT    NOT NULL,
+		track_id INTEGER REFERENCES tracks(id) ON DELETE CASCADE,
+		seconds  REAL    NOT NULL,
+		PRIMARY KEY (user_id, at_ms, item_id)
+	);
+	CREATE TABLE jellyfin_items (
+		item_id  TEXT PRIMARY KEY,
+		track_id INTEGER REFERENCES tracks(id) ON DELETE CASCADE
+	);`,
 }
 
 // Store is a handle on the database.

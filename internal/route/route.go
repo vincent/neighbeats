@@ -42,6 +42,9 @@ type Options struct {
 	Group        func(id int64) string
 	// Key identifies copies of one song; a route never holds two. May be nil.
 	Key func(id int64) string
+	// Bias adjusts the cost of entering a track (negative = preferred) and may
+	// give a short reason. May be nil.
+	Bias func(id int64) (float64, string)
 	// Forbidden tracks may not be intermediates. The endpoints are always allowed.
 	Forbidden map[int64]bool
 }
@@ -102,6 +105,7 @@ type node struct {
 	cos    float32
 	score  float64
 	closed bool
+	note   string // why the taste bias applied, if it did
 	f      float64
 	index  int // heap position
 	inHeap bool
@@ -192,7 +196,14 @@ func Find(g Graph, a, b int64, opt Options) (Route, error) {
 				continue
 			}
 			score := vecindex.Score(c.Cosine, opt.K)
-			cost := math.Max(opt.Hop+0.05, opt.Base+opt.Scale*(1-score)+opt.Hop)
+			cost := opt.Base + opt.Scale*(1-score) + opt.Hop
+			var note string
+			if opt.Bias != nil {
+				var d float64
+				d, note = opt.Bias(c.ID)
+				cost += d
+			}
+			cost = math.Max(opt.Hop+0.05, cost) // a hop is never free
 			gNew := cur.g + cost
 			nd := nodes[c.ID]
 			if nd != nil && (nd.closed || gNew >= nd.g) {
@@ -206,7 +217,7 @@ func Find(g Graph, a, b int64, opt Options) (Route, error) {
 				nd = &node{id: c.ID}
 				nodes[c.ID] = nd
 			}
-			nd.parent, nd.g, nd.hops, nd.cos, nd.score = cur, gNew, cur.hops+1, c.Cosine, score
+			nd.parent, nd.g, nd.hops, nd.cos, nd.score, nd.note = cur, gNew, cur.hops+1, c.Cosine, score, note
 			nd.f = gNew + hn
 			if nd.inHeap {
 				heap.Fix(open, nd.index)
@@ -280,6 +291,9 @@ func build(end *node, expanded int) Route {
 		s := Step{ID: n.id, Cosine: n.cos, Score: n.score}
 		if n.parent != nil {
 			s.Reason = fmt.Sprintf("similarity %.2f", n.score)
+			if n.note != "" {
+				s.Reason += "; " + n.note
+			}
 		}
 		r.Steps = append(r.Steps, s)
 	}

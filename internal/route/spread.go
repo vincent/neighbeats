@@ -45,7 +45,8 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 			return Route{}, err
 		}
 		var best vecindex.Neighbour
-		bestVal, bestSim := -1e9, float32(0)
+		bestVal, bestSim, bestNote := -1e9, float32(0), ""
+		const biasWeight = 0.05 // cosine given up per unit of taste cost
 		for _, c := range near {
 			if c.ID == a || c.ID == b || !allowed(cur, c.ID, b, &opt) {
 				continue
@@ -54,8 +55,15 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 			if err != nil {
 				return Route{}, err
 			}
-			if v := float64(c.Cosine); v > bestVal {
-				best, bestVal, bestSim = c, v, sim
+			v := float64(c.Cosine)
+			var note string
+			if opt.Bias != nil {
+				var d float64
+				d, note = opt.Bias(c.ID)
+				v -= biasWeight * d
+			}
+			if v > bestVal {
+				best, bestVal, bestSim, bestNote = c, v, sim, note
 			}
 		}
 		if bestVal == -1e9 {
@@ -66,7 +74,7 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 		cur = &node{id: best.ID, parent: cur, hops: cur.hops + 1}
 		route.Steps = append(route.Steps, Step{ID: best.ID, Cosine: bestSim,
 			Score:  vecindex.Score(bestSim, opt.K),
-			Reason: fmt.Sprintf("waypoint %d of %d", i, n-2)})
+			Reason: waypointReason(i, n-2, bestNote)})
 	}
 	sim, err := g.Similarity(cur.id, b)
 	if err != nil {
@@ -74,4 +82,12 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 	}
 	route.Steps = append(route.Steps, Step{ID: b, Cosine: sim, Score: vecindex.Score(sim, opt.K), Reason: "destination"})
 	return route, nil
+}
+
+func waypointReason(i, n int, note string) string {
+	r := fmt.Sprintf("waypoint %d of %d", i, n)
+	if note != "" {
+		r += "; " + note
+	}
+	return r
 }

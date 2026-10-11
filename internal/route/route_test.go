@@ -3,6 +3,7 @@ package route
 import (
 	"errors"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/vincentlark/neighbeats/internal/vecindex"
@@ -202,5 +203,36 @@ func TestSpreadConstraints(t *testing.T) {
 	}
 	if _, err := Spread(ix, 0, 0, 4, Options{}); !errors.Is(err, ErrSame) {
 		t.Errorf("same: %v", err)
+	}
+}
+
+func TestBiasChangesTheRoute(t *testing.T) {
+	// Two ways from 1 to 4: through 2 (plain) or through 6 (liked by taste).
+	f := chain()
+	f.adj[1] = []vecindex.Neighbour{nb(2, 0.7), nb(6, 0.6)}
+	f.adj[2] = []vecindex.Neighbour{nb(4, 0.7)}
+	f.adj[6] = []vecindex.Neighbour{nb(4, 0.7)}
+	f.adj[4] = []vecindex.Neighbour{nb(2, 0.7), nb(6, 0.7)}
+	f.sim[[2]int64{6, 4}] = 0.7
+	f.sim[[2]int64{2, 4}] = 0.7
+	plain, _ := Find(f, 1, 4, Options{})
+	if !eq(ids(plain), []int64{1, 2, 4}) {
+		t.Fatalf("plain %v", ids(plain))
+	}
+	bias := func(id int64) (float64, string) {
+		switch id {
+		case 6:
+			return -0.5, "favourite"
+		case 2:
+			return 0.5, "played today"
+		}
+		return 0, ""
+	}
+	liked, _ := Find(f, 1, 4, Options{Bias: bias})
+	if !eq(ids(liked), []int64{1, 6, 4}) {
+		t.Fatalf("liked %v", ids(liked))
+	}
+	if r := liked.Steps[1].Reason; !strings.HasSuffix(r, "; favourite") {
+		t.Errorf("reason should name the taste term: %q", r)
 	}
 }

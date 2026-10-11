@@ -33,7 +33,8 @@ Commands:
   lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
   analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
   similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-allow-adjacent] [-raw] <path|mbid|words...>
-  path      playlist travelling from one track to another: neighbeats path [-length N | -max-hops N] [-explain] [-out f.m3u8] <from> <to>
+  path      playlist travelling from one track to another: neighbeats path [-length N | -max-hops N] [-mode M] [-user U] [-explain] [-out f.m3u8] <from> <to>
+  sync-jellyfin  pull plays, favourites and skips of a Jellyfin user: neighbeats sync-jellyfin [-user NAME]
   stats     show what the index contains
   version   print the version
 
@@ -79,6 +80,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdSimilar(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "path":
 		err = cmdPath(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "sync-jellyfin":
+		err = cmdSyncJellyfin(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":

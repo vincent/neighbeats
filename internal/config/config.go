@@ -33,6 +33,10 @@ type Config struct {
 	// PathMap translates local paths to Jellyfin's view of the same files.
 	PathMap []pathmap.Mapping `yaml:"path_map"`
 
+	// Jellyfin is the server whose listening history biases routes. The API
+	// key is read from $NEIGHBEATS_JELLYFIN_KEY, never from this file.
+	Jellyfin Jellyfin `yaml:"jellyfin"`
+
 	// ModelPath is the Discogs-EffNet ONNX file used by `analyze`.
 	ModelPath string `yaml:"model_path"`
 	// ORTLibrary is the libonnxruntime shared library; empty lets the system
@@ -44,6 +48,18 @@ type Config struct {
 	AnalyzeWorkers int `yaml:"analyze_workers"`
 	// ClipSeconds is the length of the clip embedded from each track.
 	ClipSeconds float64 `yaml:"clip_seconds"`
+}
+
+// KeyEnvVar names the environment variable holding the Jellyfin API key.
+const KeyEnvVar = "NEIGHBEATS_JELLYFIN_KEY"
+
+// Jellyfin locates the media server.
+type Jellyfin struct {
+	// URL is the server's base address, e.g. https://jellyfin.example.org.
+	URL string `yaml:"url"`
+	// User is the default account (name) for sync-jellyfin and path; the
+	// commands' -user flag overrides it.
+	User string `yaml:"user"`
 }
 
 // Resolve picks the config file path: explicit flag, then $NEIGHBEATS_CONFIG,
@@ -135,6 +151,10 @@ func (c *Config) applyDefaults() error {
 	}
 	if _, err := pathmap.New(c.PathMap); err != nil {
 		return err
+	}
+	c.Jellyfin.URL = strings.TrimRight(strings.TrimSpace(c.Jellyfin.URL), "/")
+	if u := c.Jellyfin.URL; u != "" && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+		return fmt.Errorf("jellyfin.url must start with http:// or https://, got %q", u)
 	}
 	return nil
 }

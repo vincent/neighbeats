@@ -9,7 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vincentlark/neighbeats/internal/config"
+	"github.com/vincentlark/neighbeats/internal/embed"
 	"github.com/vincentlark/neighbeats/internal/route"
+	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincentlark/neighbeats/internal/taste"
 	"github.com/vincentlark/neighbeats/internal/vecindex"
 )
 
@@ -47,6 +51,8 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	expand := fs.Int("max-expand", def.MaxExpand, "search effort: tracks expanded before giving up")
 	explain := fs.Bool("explain", false, "show cosine and score of every hop")
 	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
+	modeName := fs.String("mode", "", "taste: comfort, explore, rediscover or none (default comfort when history is synced)")
+	userName := fs.String("user", "", "whose history to use (default: jellyfin.user in the config)")
 	out := fs.String("out", "", "write the route as an M3U8 playlist")
 	words, err := parseInterspersed(fs, args)
 	if err != nil {
@@ -120,6 +126,10 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	}
 	load := time.Since(t0)
 
+	if err := applyTaste(ctx, st, cfg, *userName, *modeName, &opt, stderr); err != nil {
+		return err
+	}
+
 	t0 = time.Now()
 	g := cappedGraph{ix: ix, filter: vecindex.Filter{MaxPerArtist: 2, Group: group}}
 	var r route.Route
@@ -156,7 +166,11 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	for i, s := range r.Steps {
 		fmt.Fprintf(stdout, "%3d  %s", i+1, label(rows[s.ID]))
 		if *explain && i > 0 {
-			fmt.Fprintf(stdout, "   (cos %.2f, score %.2f)", s.Cosine, s.Score)
+			fmt.Fprintf(stdout, "   (cos %.2f, score %.2f", s.Cosine, s.Score)
+			if _, note, ok := strings.Cut(s.Reason, "; "); ok {
+				fmt.Fprintf(stdout, "; %s", note)
+			}
+			fmt.Fprint(stdout, ")")
 		}
 		fmt.Fprintln(stdout)
 	}
@@ -169,5 +183,54 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	if !r.Found {
 		return errors.New("no route found")
 	}
+	return nil
+}
+
+// applyTaste loads the user's synced history and puts the mode's cost
+// adjustments and skipped tracks into the route options. Without synced
+// history the default mode is skipped silently; asking for a mode explicitly
+// without history is an error.
+func applyTaste(ctx context.Context, st *store.Store, cfg *config.Config, userName, modeName string, opt *route.Options, stderr io.Writer) error {
+	explicit := modeName != ""
+	if modeName == "" {
+		modeName = string(taste.Comfort)
+	}
+	mode, err := taste.ParseMode(modeName)
+	if err != nil {
+		return err
+	}
+	if mode == taste.None {
+		return nil
+	}
+	if userName == "" {
+		userName = cfg.Jellyfin.User
+	}
+	if userName == "" {
+		if explicit {
+			return errors.New("which user's history? pass -user NAME or set jellyfin.user in the config")
+		}
+		return nil
+	}
+	durations, err := st.Durations(ctx, embed.ModelID)
+	if err != nil {
+		return err
+	}
+	prof, err := taste.Load(ctx, st, taste.Key(userName), durations)
+	if err != nil {
+		return err
+	}
+	if len(prof.ByTrack) == 0 {
+		if explicit {
+			return fmt.Errorf("no history stored for %q: run `neighbeats sync-jellyfin` first", userName)
+		}
+		return nil
+	}
+	now := time.Now()
+	opt.Bias = prof.Bias(mode, now)
+	skipped := prof.Skipped(now)
+	for id := range skipped {
+		opt.Forbidden[id] = true
+	}
+	fmt.Fprintf(stderr, "taste: %s mode for %s (%d tracks with history, %d recently skipped avoided)\n", mode, userName, len(prof.ByTrack), len(skipped))
 	return nil
 }

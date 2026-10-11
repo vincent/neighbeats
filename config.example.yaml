@@ -29,6 +29,15 @@ path_map:
   - local: /music
     remote: /data/music
 
+# --- Jellyfin (M4): plays, favourites and skips bias `path` -----------------------
+
+# The API key is NOT set here: put NEIGHBEATS_JELLYFIN_KEY=... in the .env file next to
+# compose.yaml (Dashboard > API Keys). For skips, install the Playback Reporting plugin.
+# path_map.remote above must be the file path Jellyfin itself reports for the tracks.
+# jellyfin:
+#   url: https://jellyfin.example.org
+#   user: vincent        # default account; -user overrides, one history per user
+
 # --- analyze (M1): music embeddings -------------------------------------------
 
 # Discogs-EffNet ONNX model (https://essentia.upf.edu/models/feature-extractors/discogs-effnet/
