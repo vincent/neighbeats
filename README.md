@@ -8,9 +8,6 @@ on a NAS next to a Jellyfin server and to write plain M3U8 files.
 
 Library size this is built for: about 25,000 tracks.
 
-The design follows an existing reference project (a desktop app with a route
-engine, cost model and live replanning). Its ideas are reused; no code is shared.
-
 ## Status
 
 **M0 done: library indexing**, plus **lyrics ingest and search (L1)**. Songs are
@@ -133,3 +130,15 @@ Tests that need `ffmpeg` skip themselves when it is not installed.
   but not yet by a real Picard-tagged file. MP3 (ID3v2) and FLAC are covered by
   generated files.
 - No duration is stored yet; it arrives with audio analysis in M1.
+
+## Acknowledgments
+
+The route search and cost model draw on ideas from [Melodex](https://github.com/Cliff-Lee/melodex) and [AudioMuse](https://github.com/NeptuneHub/AudioMuse-AI) ; no code is shared.
+
+neighbeats downloads or bundles:
+- the Discogs-EffNet audio embedding model from the Music Technology Group, Universitat Pompeu Fabra (CC BY-NC-SA); 
+- multilingual-e5-small (MIT); 
+- ONNX Runtime (MIT); 
+- whatlanggo for language detection. 
+
+This project was largely written with AI assistance (Claude Code).
