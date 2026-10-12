@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/embed"
 )
 
 func TestPrepare(t *testing.T) {

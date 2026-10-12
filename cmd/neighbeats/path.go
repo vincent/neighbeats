@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/config"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/route"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/taste"
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/route"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/taste"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // cappedGraph hands the route search neighbour lists with at most two tracks

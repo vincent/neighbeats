@@ -10,7 +10,7 @@ import (
 
 	ort "github.com/yalue/onnxruntime_go"
 
-	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/embed"
 )
 
 const (

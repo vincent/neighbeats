@@ -7,14 +7,14 @@ import (
 	"io"
 	"strings"
 
-	"github.com/vincentlark/neighbeats/internal/config"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/keywords"
-	"github.com/vincentlark/neighbeats/internal/lang"
-	"github.com/vincentlark/neighbeats/internal/route"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/textembed"
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/keywords"
+	"github.com/vincent/neighbeats/internal/lang"
+	"github.com/vincent/neighbeats/internal/route"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/textembed"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // Defaults of the lyric side of a route. The weights are first guesses, to be

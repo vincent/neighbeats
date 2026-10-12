@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/audio"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/audio"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/store"
 )
 
 const maxErrLen = 200

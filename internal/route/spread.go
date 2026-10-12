@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // VectorGraph is a Graph that can also look up tracks near a point in the

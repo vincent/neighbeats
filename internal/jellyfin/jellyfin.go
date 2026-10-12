@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -196,7 +197,7 @@ type queryResp struct {
 }
 
 // ErrNoPlugin hints that the Playback Reporting plugin is missing.
-var ErrNoPlugin = fmt.Errorf("Playback Reporting plugin not available")
+var ErrNoPlugin = errors.New("the Playback Reporting plugin is not available")
 
 // PlayEvents returns the user's audio play events strictly after `since`,
 // oldest first. The plugin stores times in UTC with 7 fractional digits.
@@ -241,7 +242,7 @@ func isHex(s string) bool {
 		return false
 	}
 	for _, r := range s {
-		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f' || r >= 'A' && r <= 'F') {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}

@@ -1,0 +1,40 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - .goreleaser.yaml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  goreleaser:
+    # Ubuntu 22.04 on purpose: the binary links against its glibc (2.35), the
+    # same as the CUDA Docker image, so it runs on older distributions too.
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # create the GitHub release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the changelog needs the history and tags
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # cgo cross compiler for the arm64 binary.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      # Pull requests only check the config and build everything; nothing is published.
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: ${{ github.event_name == 'pull_request' && 'release --snapshot --skip=publish --clean' || 'release --clean' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

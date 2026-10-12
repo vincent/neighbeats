@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // fake is a hand-made graph: adj lists neighbours (best first) and sim gives

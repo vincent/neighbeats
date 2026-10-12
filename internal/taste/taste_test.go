@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/jellyfin"
-	"github.com/vincentlark/neighbeats/internal/pathmap"
-	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/jellyfin"
+	"github.com/vincent/neighbeats/internal/pathmap"
+	"github.com/vincent/neighbeats/internal/store"
 )
 
 var now = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)

@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vincentlark/neighbeats/internal/config"
-	"github.com/vincentlark/neighbeats/internal/jellyfin"
-	"github.com/vincentlark/neighbeats/internal/taste"
+	"github.com/vincent/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/jellyfin"
+	"github.com/vincent/neighbeats/internal/taste"
 )
 
 // jellyfinClient builds the client from the config and the key in the environment.

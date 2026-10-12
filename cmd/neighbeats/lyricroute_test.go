@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/route"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/tags"
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/route"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/tags"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // ring builds an index of n unit vectors spread over a quarter circle.

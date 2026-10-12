@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/analyze"
-	"github.com/vincentlark/neighbeats/internal/audio"
-	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/analyze"
+	"github.com/vincent/neighbeats/internal/audio"
+	"github.com/vincent/neighbeats/internal/embed"
 )
 
 func cmdAnalyze(ctx context.Context, cfgPath string, args []string, stdout, stderr io.Writer) error {

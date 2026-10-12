@@ -60,8 +60,20 @@ Then `scan` (it also detects each lyric's language), `embed-lyrics` (minutes, re
 `path` uses the lyrics by itself: `-lyric-weight` (0.2), `-lang-penalty` (0.5), `-theme`,
 `-theme-weight`. Set a weight to 0 to switch that part off.
 
+No NVIDIA GPU? Use the smaller CPU image (amd64 and arm64):
+`docker compose -f compose.yaml -f compose.cpu.yaml run --rm -it neighbeats onboard`
+(or `COMPOSE_FILE=compose.yaml:compose.cpu.yaml` in `.env`), and answer "no" to the GPU question.
+Published images: `ghcr.io/<owner>/neighbeats:main` (CUDA) and `:main-cpu`.
+
 `compose.yaml` documents the mounts and the GPU reservation. `--config FILE` or
 `$NEIGHBEATS_CONFIG` selects another config file (compose sets the latter).
+
+## Releases
+
+Pushing a tag `vX.Y.Z` publishes a GitHub release with `neighbeats` binaries for linux amd64
+and arm64 (tar.gz, checksums, changelog from `feat:`/`fix:` commits) and the Docker images
+(`:X.Y.Z` CUDA, `:X.Y.Z-cpu`). The binary still needs `libonnxruntime.so` (1.29) and `ffmpeg`
+on the host; the images carry both.
 
 ## Developing natively
 

@@ -1,0 +1,24 @@
+version: "2"
+linters:
+  settings:
+    errcheck:
+      # Cleanup calls whose failure cannot be acted on.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*database/sql.Tx).Rollback
+        - (*net/http.Response).Body.Close
+        - os.Remove
+        - os.RemoveAll
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    rules:
+      - text: "Error return value of `[^`]*\\.(Close|Destroy)` is not checked"
+        linters: [errcheck]
+      - path: _test\.go
+        linters: [errcheck]

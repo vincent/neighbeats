@@ -1,0 +1,62 @@
+version: 2
+
+project_name: neighbeats
+
+builds:
+  - id: neighbeats
+    binary: neighbeats
+    main: ./cmd/neighbeats
+    # cgo is needed for the ONNX Runtime binding (the library itself is loaded
+    # at run time). arm64 is cross-built with gcc-aarch64-linux-gnu on the
+    # release runner; see .github/workflows/release.yml.
+    env:
+      - CGO_ENABLED=1
+      - CC={{ if eq .Arch "arm64" }}aarch64-linux-gnu-gcc{{ else }}gcc{{ end }}
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+    goarm64:
+      - v8.0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: ["tar.gz"]
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - README.md
+      - config.example.yaml
+      - docs/operations.md
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat(\(.+\))?!?:'
+      order: 0
+    - title: Fixes
+      regexp: '^fix(\(.+\))?!?:'
+      order: 1
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^docs?:'
+      - '^test:'
+      - '^chore:'
+
+release:
+  footer: |
+    The binary needs `libonnxruntime.so` (ONNX Runtime 1.29) and `ffmpeg` on the host,
+    and the model files; see the README. Or use the Docker images:
+    `ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}` (CUDA) and `:{{ .Version }}-cpu`.

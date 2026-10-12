@@ -17,7 +17,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // Graph is what the search needs from the index.

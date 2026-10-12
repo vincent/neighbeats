@@ -13,13 +13,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/config"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/lang"
-	"github.com/vincentlark/neighbeats/internal/lyrics"
-	"github.com/vincentlark/neighbeats/internal/scan"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/textembed"
+	"github.com/vincent/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/lang"
+	"github.com/vincent/neighbeats/internal/lyrics"
+	"github.com/vincent/neighbeats/internal/scan"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/textembed"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".

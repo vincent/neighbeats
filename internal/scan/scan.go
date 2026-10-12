@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/tags"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/tags"
 )
 
 const (

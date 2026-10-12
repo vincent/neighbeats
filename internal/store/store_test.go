@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/tags"
+	"github.com/vincent/neighbeats/internal/tags"
 )
 
 func open(t *testing.T) *Store {

@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1
+
+# neighbeats: CPU-only image for hosts without an NVIDIA GPU. amd64 and arm64.
+# Smaller than the default Dockerfile (no CUDA, no cuDNN). Same usage:
+#
+#   docker build -f Dockerfile.cpu -t neighbeats:cpu .
+#   docker run --rm \
+#     -e NEIGHBEATS_CONFIG=/config/config.yaml \
+#     -v ./config.yaml:/config/config.yaml:ro \
+#     -v ./data:/data -v ./models:/models:ro -v /path/to/music:/music:ro \
+#     neighbeats:cpu analyze
+#
+# Set `provider: cpu` in the config: this image has no CUDA provider, so `auto`
+# would log "CUDA unavailable" once per command before falling back.
+#
+# The models are not baked in (CC BY-NC-SA): mount them at /models, see `onboard`.
+
+ARG ORT_VERSION=1.29.0
+
+# --- ONNX Runtime CPU build ---------------------------------------------------
+# 1.29 matches the C API headers of the Go binding (yalue/onnxruntime_go). Its
+# kernels pick AVX/AVX2 at run time, so older CPUs work.
+FROM debian:bookworm-slim AS ort
+ARG ORT_VERSION
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/*
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) arch=x64;     sha=c3fddc4f139a045b0c4902c57410f0694f1c2fdf9b6939fbe38b1aeae7cd14ba ;; \
+      arm64) arch=aarch64; sha=e1799098ebc054b370f6176a450f158720f297818c613e5dc99b92e2ec82346f ;; \
+      *) echo "unsupported architecture ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL --retry 8 --retry-delay 3 --retry-all-errors -o /ort.tgz \
+      "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-${arch}-${ORT_VERSION}.tgz"; \
+    echo "${sha}  /ort.tgz" | sha256sum -c -; \
+    mkdir /ort && tar -xzf /ort.tgz -C /ort --strip-components=1
+
+# --- build --------------------------------------------------------------------
+# Same Debian release as the runtime image so the cgo binary links against a
+# compatible glibc. The golang image already has gcc.
+FROM golang:1.26-bookworm AS build
+ENV CGO_ENABLED=1 GOFLAGS=-trimpath
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+ARG VERSION=dev
+RUN go build -ldflags "-s -w -X main.version=${VERSION}" -o /neighbeats ./cmd/neighbeats
+
+# --- runtime ------------------------------------------------------------------
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=ort /ort/lib/ /opt/onnxruntime/lib/
+COPY --from=build /neighbeats /usr/local/bin/neighbeats
+ENV LD_LIBRARY_PATH=/opt/onnxruntime/lib
+VOLUME ["/data"]
+ENTRYPOINT ["neighbeats"]
+CMD ["help"]

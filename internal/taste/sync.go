@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/jellyfin"
-	"github.com/vincentlark/neighbeats/internal/pathmap"
-	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/jellyfin"
+	"github.com/vincent/neighbeats/internal/pathmap"
+	"github.com/vincent/neighbeats/internal/store"
 )
 
 // API is the part of the Jellyfin client that Sync uses.

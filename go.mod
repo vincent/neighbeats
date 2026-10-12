@@ -1,4 +1,4 @@
-module github.com/vincentlark/neighbeats
+module github.com/vincent/neighbeats
 
 go 1.26.0
 

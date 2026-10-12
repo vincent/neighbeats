@@ -69,7 +69,7 @@ func ParseLRC(data []byte) Parsed {
 		text := stripWordMarks(rest)
 		if len(stamps) == 0 {
 			// Metadata-only lines leave nothing; hand-written lines are kept.
-			if text != "" && !(len(line) > len(rest)) {
+			if text != "" && len(line) <= len(rest) {
 				plain = append(plain, text)
 			}
 			continue

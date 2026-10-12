@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/textembed"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/textembed"
 )
 
 // fakeText embeds a text as a one-hot of its first letter.

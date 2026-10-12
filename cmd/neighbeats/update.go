@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/config"
 )
 
 const backupPrefix, backupSuffix = "neighbeats-", ".sqlite"

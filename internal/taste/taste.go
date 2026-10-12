@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/store"
 )
 
 // Mode picks how listening history bends route costs.

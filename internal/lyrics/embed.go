@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/textembed"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/textembed"
 )
 
 // TextEmbedder is what EmbedAll needs from the text model.

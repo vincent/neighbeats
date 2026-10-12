@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vincentlark/neighbeats/internal/lang"
-	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/lang"
+	"github.com/vincent/neighbeats/internal/store"
 )
 
 // maxLRCSize skips files that are clearly not lyrics.

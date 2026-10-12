@@ -12,7 +12,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/vincentlark/neighbeats/internal/pathmap"
+	"github.com/vincent/neighbeats/internal/pathmap"
 )
 
 // EnvVar names the environment variable that selects the config file.

@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/config"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/lyrics"
-	"github.com/vincentlark/neighbeats/internal/textembed"
+	"github.com/vincent/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/lyrics"
+	"github.com/vincent/neighbeats/internal/textembed"
 )
 
 // openTextModel loads the lyric text model named by the config.

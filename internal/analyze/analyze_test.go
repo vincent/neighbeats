@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/vincentlark/neighbeats/internal/audio"
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/tags"
+	"github.com/vincent/neighbeats/internal/audio"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/tags"
 )
 
 // fakeDecoder returns a sine whose pitch depends on the file name, a too-short

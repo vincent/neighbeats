@@ -1,0 +1,18 @@
+# Override for hosts without an NVIDIA GPU: builds Dockerfile.cpu (or pulls the
+# published -cpu image) instead of the CUDA one.
+#
+#   docker compose -f compose.yaml -f compose.cpu.yaml run --rm -it neighbeats onboard
+#
+# or set COMPOSE_FILE=compose.yaml:compose.cpu.yaml in .env to make it the default.
+# Use `provider: cpu` in config.yaml.
+#
+# To pull instead of building, replace the build block with
+#   image: ghcr.io/<owner>/neighbeats:main-cpu
+# (and `build: !reset null`).
+
+services:
+  neighbeats:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: neighbeats:local-cpu

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/tags"
+	"github.com/vincent/neighbeats/internal/tags"
 )
 
 // Track is one indexed audio file.

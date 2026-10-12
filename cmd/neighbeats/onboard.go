@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vincentlark/neighbeats"
-	"github.com/vincentlark/neighbeats/internal/config"
+	"github.com/vincent/neighbeats"
+	"github.com/vincent/neighbeats/internal/config"
 )
 
 // onboardIn is where answers are read from (replaced in tests).

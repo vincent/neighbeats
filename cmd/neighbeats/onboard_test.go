@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/config"
+	"github.com/vincent/neighbeats/internal/config"
 )
 
 func modelServer(t *testing.T) *httptest.Server {

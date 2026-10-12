@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vincentlark/neighbeats/internal/embed"
-	"github.com/vincentlark/neighbeats/internal/m3u"
-	"github.com/vincentlark/neighbeats/internal/pathmap"
-	"github.com/vincentlark/neighbeats/internal/store"
-	"github.com/vincentlark/neighbeats/internal/vecindex"
+	"github.com/vincent/neighbeats/internal/embed"
+	"github.com/vincent/neighbeats/internal/m3u"
+	"github.com/vincent/neighbeats/internal/pathmap"
+	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/vecindex"
 )
 
 // defaultK is the exp(-k*distance) falloff used to turn cosine similarity
