@@ -37,6 +37,9 @@ type Options struct {
 	AllowMassRemove bool
 	// Logf receives progress lines; nil silences them.
 	Logf func(format string, args ...any)
+	// Progress receives the running totals, often (every 250 ms). Nil means
+	// they go to Logf every 5 s.
+	Progress func(format string, args ...any)
 }
 
 // Result summarises a finished scan.
@@ -127,14 +130,18 @@ func Run(ctx context.Context, st *store.Store, opt Options) (Result, error) {
 		}()
 	}
 
+	progress, every := opt.Progress, 250*time.Millisecond
+	if progress == nil {
+		progress, every = func(f string, a ...any) { logf(f, a...) }, 5*time.Second
+	}
 	stopProgress := make(chan struct{})
 	go func() {
-		tick := time.NewTicker(5 * time.Second)
+		tick := time.NewTicker(every)
 		defer tick.Stop()
 		for {
 			select {
 			case <-tick.C:
-				logf("scanning... %d files seen (%d new, %d changed)", c.seen.Load(), c.added.Load(), c.changed.Load())
+				progress("scanning: %d files seen (%d new, %d changed)", c.seen.Load(), c.added.Load(), c.changed.Load())
 			case <-stopProgress:
 				return
 			}

@@ -32,6 +32,9 @@ type Options struct {
 	RetryErrors bool    // retry tracks that failed on the same file version
 	Limit       int     // stop after this many tracks (0 = all)
 	Logf        func(format string, args ...any)
+	// Progress receives the running totals after every track; nil means a
+	// line to Logf every 100 tracks.
+	Progress func(format string, args ...any)
 }
 
 // Timings is the cumulative time spent per stage across all workers, so the
@@ -186,8 +189,15 @@ func Run(ctx context.Context, st *store.Store, opt Options) (Result, error) {
 				cancel()
 				continue
 			}
-			if n := done.Add(1); n%100 == 0 {
-				logf("%d/%d embedded (%.1f tracks/s)", n, len(pending), float64(n)/time.Since(start).Seconds())
+			n := done.Add(1)
+			if opt.Progress != nil || n%100 == 0 {
+				rate := float64(n) / time.Since(start).Seconds()
+				line := fmt.Sprintf("embedded %d/%d (%.1f tracks/s%s)", n, len(pending), rate, eta(int(n), len(pending), rate))
+				if opt.Progress != nil {
+					opt.Progress("%s", line)
+				} else {
+					logf("%s", line)
+				}
 			}
 		}
 	}()
@@ -215,4 +225,12 @@ feed:
 		return res, *e
 	}
 	return res, ctx.Err()
+}
+
+// eta formats ", ETA 9m" for done of total tracks at rate tracks/s ("" when unknown).
+func eta(done, total int, rate float64) string {
+	if rate <= 0 || done >= total {
+		return ""
+	}
+	return ", ETA " + (time.Duration(float64(total-done) / rate * float64(time.Second))).Round(time.Second).String()
 }

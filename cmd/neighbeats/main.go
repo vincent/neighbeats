@@ -129,13 +129,16 @@ func cmdScan(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	defer st.Close()
 
 	start := time.Now()
+	lv := newLive(stderr)
 	res, err := scan.Run(ctx, st, scan.Options{
 		Roots:           cfg.MusicRoots,
 		Extensions:      cfg.ExtensionSet(),
 		Workers:         cfg.ScanWorkers,
 		AllowMassRemove: *massRemove,
-		Logf:            func(f string, a ...any) { fmt.Fprintf(stderr, f+"\n", a...) },
+		Logf:            lv.Logf,
+		Progress:        lv.Status,
 	})
+	lv.Done()
 	fmt.Fprintf(stdout, "scan %s in %s: %d files seen, %d new, %d changed, %d unchanged, %d removed, %d tag errors\n",
 		res.Status, time.Since(start).Round(time.Millisecond),
 		res.Seen, res.Added, res.Changed, res.Unchanged, res.Removed, res.Errors)

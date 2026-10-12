@@ -45,7 +45,8 @@ func cmdEmbedLyrics(ctx context.Context, cfgPath string, args []string, stdout, 
 	if _, err := lyrics.DetectLanguages(ctx, st); err != nil {
 		return err
 	}
-	logf := func(f string, a ...any) { fmt.Fprintf(stderr, f+"\n", a...) }
+	lv := newLive(stderr)
+	logf := lv.Logf
 	m, err := openTextModel(cfg, *provider, logf)
 	if err != nil {
 		return err
@@ -58,7 +59,8 @@ func cmdEmbedLyrics(ctx context.Context, cfgPath string, args []string, stdout, 
 	defer stop()
 
 	t0 := time.Now()
-	res, err := lyrics.EmbedAll(ctx, st, m, lyrics.EmbedOptions{Limit: *limit, Logf: logf})
+	res, err := lyrics.EmbedAll(ctx, st, m, lyrics.EmbedOptions{Limit: *limit, Logf: logf, Progress: lv.Status})
+	lv.Done()
 	fmt.Fprintf(stdout, "embed-lyrics: %d pending, %d embedded (%d cut at %d tokens) in %s\n",
 		res.Pending, res.Done, res.Truncated, textembed.MaxTokens, time.Since(t0).Round(time.Millisecond))
 	if n, cerr := st.LyricEmbeddingCount(context.WithoutCancel(ctx), textembed.ModelID); cerr == nil {

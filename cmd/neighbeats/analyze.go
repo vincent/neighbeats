@@ -43,7 +43,8 @@ func cmdAnalyze(ctx context.Context, cfgPath string, args []string, stdout, stde
 	if err != nil {
 		return err
 	}
-	logf := func(f string, a ...any) { fmt.Fprintf(stderr, f+"\n", a...) }
+	lv := newLive(stderr)
+	logf := lv.Logf
 	emb, err := embed.NewORT(embed.ORTOptions{
 		ModelPath: cfg.ModelPath, LibraryPath: cfg.ORTLibrary,
 		Provider: embed.Provider(cfg.Provider), Logf: logf,
@@ -61,8 +62,9 @@ func cmdAnalyze(ctx context.Context, cfgPath string, args []string, stdout, stde
 
 	res, err := analyze.Run(ctx, st, analyze.Options{
 		Decoder: dec, Embedder: emb, Workers: cfg.AnalyzeWorkers, ClipSeconds: cfg.ClipSeconds,
-		RetryErrors: *retry, Limit: *limit, Logf: logf,
+		RetryErrors: *retry, Limit: *limit, Logf: logf, Progress: lv.Status,
 	})
+	lv.Done()
 	fmt.Fprintf(stdout, "analyze: %d pending, %d embedded, %d failed in %s\n",
 		res.Pending, res.Done, res.Failed, res.Wall.Round(time.Millisecond))
 	if res.Done > 0 {

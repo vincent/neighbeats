@@ -22,6 +22,8 @@ type EmbedOptions struct {
 	Chunk int
 	// Logf receives progress lines.
 	Logf func(format string, args ...any)
+	// Progress receives the running totals after each chunk; nil means Logf.
+	Progress func(format string, args ...any)
 }
 
 // EmbedResult counts what EmbedAll did.
@@ -70,8 +72,12 @@ func EmbedAll(ctx context.Context, st *store.Store, m TextEmbedder, opt EmbedOpt
 			return res, err
 		}
 		res.Done += len(part)
-		if opt.Logf != nil {
-			opt.Logf("embedded %d of %d lyrics", res.Done, len(pending))
+		report := opt.Progress
+		if report == nil && opt.Logf != nil {
+			report = opt.Logf
+		}
+		if report != nil {
+			report("embedded %d of %d lyrics", res.Done, len(pending))
 		}
 	}
 	return res, nil
