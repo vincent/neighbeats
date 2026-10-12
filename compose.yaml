@@ -1,4 +1,6 @@
-# neighbeats on a Docker host with the NVIDIA container toolkit.
+# neighbeats on a Docker host. This is the CUDA image: enable the `deploy` block at the
+# bottom if the host has an NVIDIA GPU and the NVIDIA container toolkit; with no GPU use
+# compose.cpu.yaml as well (smaller, amd64 and arm64).
 #
 # One-time setup:
 #   cp config.example.yaml config.yaml            # then edit path_map
@@ -17,10 +19,11 @@
 # Without a GPU, drop the `deploy` block or run with `-provider cpu`; with
 # `provider: auto` (the default) a missing GPU falls back to the CPU anyway.
 
+# The image is the published one; NEIGHBEATS_TAG picks the version (main, 1.2.3, ...).
+# To build it from this checkout instead, add compose.build.yaml.
 services:
   neighbeats:
-    build: .
-    image: neighbeats:local
+    image: ghcr.io/vincent/neighbeats:${NEIGHBEATS_TAG:-main}
     environment:
       NEIGHBEATS_CONFIG: /config/config.yaml
       # Jellyfin API key for sync-jellyfin; put it in .env, never in config.yaml.

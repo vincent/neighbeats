@@ -13,10 +13,14 @@ Library size this is built for: about 25,000 tracks.
 Everything runs in the container; you mount the config, the model, the data
 folder and your music.
 
+The images are published at `ghcr.io/vincent/neighbeats`. `compose.yaml` is the CUDA image; without an NVIDIA GPU add `compose.cpu.yaml` (smaller, amd64 and arm64).
+
 ```sh
-cp config.example.yaml config.yaml        # container paths; set path_map.remote
-mkdir -p data models                      # put discogs-effnet-bsdynamic-1.onnx in ./models
-export MUSIC_DIR=/path/to/your/music      # or put it in .env
+mkdir neighbeats && cd neighbeats && mkdir data models
+B=https://raw.githubusercontent.com/vincent/neighbeats/main
+curl -fsSLO $B/compose.yaml -O $B/compose.cpu.yaml     # compose.cpu.yaml: only without a GPU
+curl -fsSL $B/config.example.yaml -o config.yaml       # container paths; onboard edits it
+echo 'MUSIC_DIR=/path/to/your/music' > .env            # and COMPOSE_FILE=compose.yaml:compose.cpu.yaml without a GPU
 
 docker compose run --rm -it neighbeats onboard         # first run: asks about paths, models and GPU, then sets them up
 docker compose run --rm neighbeats scan                # incremental; safe to re-run
@@ -34,6 +38,12 @@ docker compose run --rm neighbeats embed-lyrics         # lyric vectors (needs t
 docker compose run --rm neighbeats path -theme "sea, night" -length 15 "song a" "song b"
 docker compose run --rm neighbeats path -from-lyric "walking by the ocean" -to-id 123 -length 15
 ```
+
+GPU: for an NVIDIA card uncomment the `deploy` block in `compose.yaml` (needs the NVIDIA container
+toolkit). Without one, use the CPU image (`:main-cpu`) and answer "no" to the GPU question in
+`onboard`: `docker compose -f compose.yaml -f compose.cpu.yaml run --rm -it neighbeats onboard`,
+or `COMPOSE_FILE=compose.yaml:compose.cpu.yaml` in `.env`. Update with `docker compose pull`;
+to build the image from a clone instead, see `compose.build.yaml`.
 
 ## Developing natively
 

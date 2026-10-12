@@ -105,7 +105,7 @@ To restore, stop everything and copy a backup over `neighbeats.sqlite` (delete a
 
 ## Upgrades
 
-Rebuild the image (`docker compose build`) and run any command: the database upgrades itself
+Pull the new image (`docker compose pull`, or `docker compose build` with `compose.build.yaml`) and run any command: the database upgrades itself
 on open. Take a `backup` first; going back to an older version needs the backup.
 
 ## The music share is not mounted
