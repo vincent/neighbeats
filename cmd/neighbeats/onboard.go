@@ -173,14 +173,18 @@ func cmdOnboard(ctx context.Context, cfgPath string, args []string, stdout, stde
 
 	// 3. provider
 	fmt.Fprintln(stdout, "\n3. GPU")
-	if _, err := os.Stat("/dev/nvidiactl"); err == nil {
+	prov := *provider
+	if prov == "" && path == config.SystemConfig {
+		fmt.Fprintln(stdout, "   The Debian package bundles the CPU build of ONNX Runtime, so it runs on the CPU.")
+		fmt.Fprintln(stdout, "   For a GPU use the CUDA Docker image (see the README).")
+		prov = "cpu"
+	} else if _, err := os.Stat("/dev/nvidiactl"); err == nil {
 		fmt.Fprintln(stdout, "   An NVIDIA device is visible here.")
 	} else {
 		fmt.Fprintln(stdout, "   No NVIDIA device is visible in this container. The GPU is enabled in compose.yaml:")
 		fmt.Fprintln(stdout, "   uncomment the `deploy:` block (resources > reservations > devices, driver nvidia)")
 		fmt.Fprintln(stdout, "   and it needs the NVIDIA container toolkit on the host. Until then \"auto\" runs on the CPU.")
 	}
-	prov := *provider
 	if prov == "" {
 		use, err := p.confirm("   Use the GPU when it works (otherwise CPU only)?", true)
 		if err != nil {

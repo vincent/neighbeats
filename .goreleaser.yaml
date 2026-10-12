@@ -2,6 +2,11 @@ version: 2
 
 project_name: neighbeats
 
+before:
+  hooks:
+    # Downloads the ONNX Runtime libraries bundled into the Debian packages.
+    - ./packaging/fetch-ort.sh
+
 builds:
   - id: neighbeats
     binary: neighbeats
@@ -35,6 +40,52 @@ archives:
       - config.example.yaml
       - docs/operations.md
 
+nfpms:
+  - id: neighbeats
+    package_name: neighbeats
+    formats: [deb]
+    maintainer: Vincent Lark <vincent.lark@gmail.com>
+    description: Playlists that travel from one song to another, built from your own library.
+    homepage: https://github.com/vincent/neighbeats
+    license: Apache-2.0
+    section: sound
+    priority: optional
+    dependencies:
+      - ffmpeg
+      - libc6 (>= 2.35)
+      - libstdc++6
+      - libgcc-s1
+    contents:
+      # CPU build of ONNX Runtime (MIT), see packaging/fetch-ort.sh.
+      - src: packaging/ort/{{ .Arch }}/libonnxruntime.so
+        dst: /usr/lib/neighbeats/libonnxruntime.so
+        file_info: {mode: 0644}
+      - src: packaging/ort/{{ .Arch }}/libonnxruntime_providers_shared.so
+        dst: /usr/lib/neighbeats/libonnxruntime_providers_shared.so
+        file_info: {mode: 0644}
+      - src: packaging/ort/{{ .Arch }}/LICENSE
+        dst: /usr/share/doc/neighbeats/onnxruntime-LICENSE
+      - src: packaging/ort/{{ .Arch }}/ThirdPartyNotices.txt
+        dst: /usr/share/doc/neighbeats/onnxruntime-ThirdPartyNotices.txt
+      - src: packaging/config.yaml
+        dst: /etc/neighbeats/config.yaml
+        type: config|noreplace
+      - src: packaging/neighbeats-update.service
+        dst: /lib/systemd/system/neighbeats-update.service
+      - src: packaging/neighbeats-update.timer
+        dst: /lib/systemd/system/neighbeats-update.timer
+      - src: config.example.yaml
+        dst: /usr/share/doc/neighbeats/config.example.yaml
+      - src: docs/operations.md
+        dst: /usr/share/doc/neighbeats/operations.md
+      - src: README.md
+        dst: /usr/share/doc/neighbeats/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/neighbeats/copyright
+    scripts:
+      postinstall: packaging/postinstall.sh
+      postremove: packaging/postremove.sh
+
 checksum:
   name_template: checksums.txt
 
@@ -57,6 +108,7 @@ changelog:
 
 release:
   footer: |
-    The binary needs `libonnxruntime.so` (ONNX Runtime 1.29) and `ffmpeg` on the host,
-    and the model files; see the README. Or use the Docker images:
+    `.deb` (amd64, arm64, CPU only): `sudo apt install ./neighbeats_*.deb`, it bundles ONNX Runtime
+    and needs `ffmpeg`; see docs/operations.md. The tar.gz binary needs `libonnxruntime.so`
+    (ONNX Runtime 1.29) and `ffmpeg` on the host, plus the model files. Docker images:
     `ghcr.io/{{ .Env.GITHUB_REPOSITORY }}:{{ .Version }}` (CUDA) and `:{{ .Version }}-cpu`.

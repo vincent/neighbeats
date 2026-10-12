@@ -76,9 +76,31 @@ func TestPathMapper(t *testing.T) {
 	}
 }
 
+func TestResolveSystemFallback(t *testing.T) {
+	t.Setenv(EnvVar, "")
+	t.Chdir(t.TempDir())
+	sys := filepath.Join(t.TempDir(), "config.yaml")
+	if resolve("", sys) != "config.yaml" {
+		t.Error("no system file: want ./config.yaml")
+	}
+	if err := os.WriteFile(sys, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if resolve("", sys) != sys {
+		t.Error("system file should be used when ./config.yaml is missing")
+	}
+	if err := os.WriteFile("config.yaml", nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if resolve("", sys) != "config.yaml" {
+		t.Error("./config.yaml wins")
+	}
+}
+
 func TestResolve(t *testing.T) {
 	t.Setenv(EnvVar, "")
-	if Resolve("") != "config.yaml" {
+	t.Chdir(t.TempDir())
+	if resolve("", "/nonexistent/config.yaml") != "config.yaml" {
 		t.Error("default")
 	}
 	t.Setenv(EnvVar, "/env.yaml")

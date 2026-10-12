@@ -65,14 +65,27 @@ type Jellyfin struct {
 	User string `yaml:"user"`
 }
 
+// SystemConfig is where the Debian package puts the config.
+const SystemConfig = "/etc/neighbeats/config.yaml"
+
 // Resolve picks the config file path: explicit flag, then $NEIGHBEATS_CONFIG,
-// then ./config.yaml.
+// then ./config.yaml, then the system file of the Debian package when only
+// that one exists.
 func Resolve(flagValue string) string {
+	return resolve(flagValue, SystemConfig)
+}
+
+func resolve(flagValue, system string) string {
 	if flagValue != "" {
 		return flagValue
 	}
 	if v := os.Getenv(EnvVar); v != "" {
 		return v
+	}
+	if _, err := os.Stat("config.yaml"); err != nil {
+		if _, err := os.Stat(system); err == nil {
+			return system
+		}
 	}
 	return "config.yaml"
 }

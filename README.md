@@ -72,8 +72,9 @@ Published images: `ghcr.io/<owner>/neighbeats:main` (CUDA) and `:main-cpu`.
 
 Pushing a tag `vX.Y.Z` publishes a GitHub release with `neighbeats` binaries for linux amd64
 and arm64 (tar.gz, checksums, changelog from `feat:`/`fix:` commits) and the Docker images
-(`:X.Y.Z` CUDA, `:X.Y.Z-cpu`). The binary still needs `libonnxruntime.so` (1.29) and `ffmpeg`
-on the host; the images carry both.
+(`:X.Y.Z` CUDA, `:X.Y.Z-cpu`). The tar.gz binary still needs `libonnxruntime.so` (1.29) and
+`ffmpeg` on the host; the images carry both. The `.deb` (CPU only, Debian 12 / Ubuntu 22.04 or
+newer) bundles ONNX Runtime; see "Debian package" in docs/operations.md.
 
 ## Developing natively
 

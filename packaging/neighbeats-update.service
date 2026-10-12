@@ -1,0 +1,20 @@
+[Unit]
+Description=neighbeats update (scan, embed new tracks and lyrics, sync Jellyfin)
+Documentation=https://github.com/vincent/neighbeats/blob/main/docs/operations.md
+ConditionPathExists=/etc/neighbeats/config.yaml
+
+[Service]
+Type=oneshot
+User=neighbeats
+Group=neighbeats
+Environment=NEIGHBEATS_CONFIG=/etc/neighbeats/config.yaml
+# Optional: NEIGHBEATS_JELLYFIN_KEY=...
+EnvironmentFile=-/etc/neighbeats/env
+ExecStart=/usr/bin/neighbeats update
+Nice=10
+IOSchedulingClass=idle
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/neighbeats
+PrivateTmp=true
+NoNewPrivileges=true

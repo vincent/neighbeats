@@ -15,6 +15,27 @@
 4. Optional taste: set `jellyfin.url` and `jellyfin.user`, put `NEIGHBEATS_JELLYFIN_KEY` in `.env`,
    run `sync-jellyfin`.
 
+## Debian package (no Docker, CPU only)
+
+Each release has `neighbeats_<version>_<arch>.deb` (amd64, arm64) for Debian 12, Ubuntu 22.04 or
+newer. It bundles ONNX Runtime and depends on `ffmpeg`; there is no GPU support, use the Docker
+image for that.
+
+```sh
+sudo apt install ./neighbeats_*.deb
+sudo nano /etc/neighbeats/config.yaml             # music_roots and path_map (default /srv/music)
+sudo -u neighbeats neighbeats onboard             # asks about paths, downloads the models
+sudo -u neighbeats neighbeats update              # first run, hours
+sudo systemctl enable --now neighbeats-update.timer   # nightly update at 03:30
+```
+
+Layout: config `/etc/neighbeats/config.yaml` (kept on upgrade), data and models
+`/var/lib/neighbeats`, Jellyfin key in `/etc/neighbeats/env` as `NEIGHBEATS_JELLYFIN_KEY=...`.
+Commands find the system config by themselves when there is no `./config.yaml`; run them as the
+`neighbeats` user (`sudo -u neighbeats neighbeats path ...`) or give your own user read access.
+The service user must be able to read the music folder. Removing the package keeps the data,
+models and the user (rebuilding embeddings takes hours); delete `/var/lib/neighbeats` by hand.
+
 ## Keeping it up to date: `update`
 
 `neighbeats update` runs, in order: `backup`, `scan`, `analyze`, `embed-lyrics`, `sync-jellyfin`.

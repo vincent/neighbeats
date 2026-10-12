@@ -1,0 +1,26 @@
+# neighbeats system configuration (Debian package). Unknown keys are rejected.
+# Edit music_roots / path_map, then run:   sudo -u neighbeats neighbeats onboard
+# and enable the nightly update:           sudo systemctl enable --now neighbeats-update.timer
+# Jellyfin API key (optional): put NEIGHBEATS_JELLYFIN_KEY=... in /etc/neighbeats/env
+
+db_path: /var/lib/neighbeats/neighbeats.sqlite
+
+# Folders to scan.
+music_roots:
+  - /srv/music
+
+# How your player (Jellyfin, ...) sees the same files. `onboard` asks about remote.
+path_map:
+  - local: /srv/music
+    remote: /srv/music
+
+# jellyfin:
+#   url: https://jellyfin.example.org
+#   user: vincent
+
+model_path: /var/lib/neighbeats/models/discogs-effnet-bsdynamic-1.onnx
+lyric_model_dir: /var/lib/neighbeats/models/multilingual-e5-small
+
+# ONNX Runtime bundled with the package (CPU only; use the Docker image for a GPU).
+ort_library: /usr/lib/neighbeats/libonnxruntime.so
+provider: cpu
