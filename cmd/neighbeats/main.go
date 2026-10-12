@@ -38,6 +38,9 @@ Commands:
   similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-allow-adjacent] [-raw] <path|mbid|words...>
   path      playlist travelling from one track to another: neighbeats path [-length N | -max-hops N] [-mode M] [-user U] [-explain] [-out f.m3u8] <from> <to>
   sync-jellyfin  pull plays, favourites and skips of a Jellyfin user: neighbeats sync-jellyfin [-user NAME]
+  onboard   first-run setup, asks before changing anything: [-yes] [-remote P] [-provider auto|cpu] [-no-models]
+  update    the one to schedule: backup, scan, analyze, embed-lyrics, sync-jellyfin (each step incremental; optional ones skipped if not set up): [-no-backup] [-keep N]
+  backup    safe copy of the database to data/backups, keeping the newest N: [-dir D] [-keep N]
   stats     show what the index contains
   version   print the version
 
@@ -87,6 +90,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdPath(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "sync-jellyfin":
 		err = cmdSyncJellyfin(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "onboard":
+		err = cmdOnboard(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "update":
+		err = cmdUpdate(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "backup":
+		err = cmdBackup(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":

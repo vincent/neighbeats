@@ -19,7 +19,7 @@ GTX 1060 6 GB), no Python at runtime if it can be avoided. The build needs cgo
 | M2 | In-memory exact neighbour search + `similar` debug command | **in progress** (search + `similar` built; listening test pending) | [M2](docs/roadmap/M2-neighbour-index.md) |
 | M3 | `path A B` + M3U8 export | **in progress** (built; listening test pending) | [M3](docs/roadmap/M3-path-and-export.md) |
 | M4 | Jellyfin sync + taste bias | **in progress** (sync + modes built; tuning pending) | [M4](docs/roadmap/M4-jellyfin-taste.md) |
-| M5 | Tuning, upkeep, packaging | planned | [M5](docs/roadmap/M5-full-library.md) |
+| M5 | Tuning, upkeep, packaging | built, untested on the NAS | [M5](docs/roadmap/M5-full-library.md) |
 
 Lyrics (sibling `.lrc` files, 36.5% of tracks): [L1-L3](docs/roadmap/L-lyrics.md).
 L1 (ingest + full-text search) is **done**; L2 (language, keywords, lyric endpoints) and L3

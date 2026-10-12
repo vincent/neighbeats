@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -32,5 +34,25 @@ func TestLivePlain(t *testing.T) {
 	l.Logf("c")
 	if got := b.String(); got != "a\nc\n" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestPruneBackups(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"neighbeats-20260101-000000.000.sqlite", "neighbeats-20260102-000000.sqlite",
+		"neighbeats-20260103-000000.sqlite", "other.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := pruneBackups(dir, 2)
+	if err != nil || n != 1 {
+		t.Fatalf("removed %d, %v", n, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "neighbeats-20260101-000000.000.sqlite")); err == nil {
+		t.Fatal("oldest kept")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "other.txt")); err != nil {
+		t.Fatal("unrelated file removed")
 	}
 }

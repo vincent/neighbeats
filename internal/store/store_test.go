@@ -338,3 +338,19 @@ func TestLangSamples(t *testing.T) {
 		t.Fatalf("samples: %v %v", got, err)
 	}
 }
+
+func TestBackup(t *testing.T) {
+	st := open(t)
+	dest := filepath.Join(t.TempDir(), "b.sqlite")
+	if err := st.Backup(context.Background(), dest); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Open(dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	if err := st.Backup(context.Background(), dest); err == nil {
+		t.Fatal("overwrote an existing backup")
+	}
+}

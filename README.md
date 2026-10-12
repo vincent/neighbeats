@@ -28,7 +28,9 @@ cp config.example.yaml config.yaml        # container paths; set path_map.remote
 mkdir -p data models                      # put discogs-effnet-bsdynamic-1.onnx in ./models
 export MUSIC_DIR=/path/to/your/music      # or put it in .env
 
+docker compose run --rm -it neighbeats onboard         # first run: asks about paths, models and GPU, then sets them up
 docker compose run --rm neighbeats scan                # incremental; safe to re-run
+docker compose run --rm neighbeats update              # the one to schedule: backup, scan, analyze, embed-lyrics, sync-jellyfin (see docs/operations.md)
 docker compose run --rm neighbeats stats               # formats, MusicBrainz and lyrics coverage
 docker compose run --rm neighbeats analyze             # embeddings (GPU if available, else CPU)
 docker compose run --rm neighbeats similar "yann tiersen valse"   # what sounds like it (after analyze)

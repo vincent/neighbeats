@@ -5,15 +5,14 @@ the tool pleasant to live with.
 
 ## Tasks
 
-- [ ] Tune cost constants on the real library with 20+ listening tests; freeze
-      them in a documented config block.
-- [ ] Incremental upkeep: a scheduled `scan` then `analyze` that only touches new
-      or changed files (an album added should take minutes, not a full re-run).
-- [ ] Startup time with all vectors loaded; if it is slow, cache a packed vector
-      file next to the database.
-- [ ] Packaging: compose file, a cron/systemd timer example, backup advice for the
-      SQLite file.
-- [ ] Docs: operations guide (first run, upgrades, what to do when the share is
+- [x] Tuning: current constants are kept (decided with the user); see docs/operations.md
+- [x] Incremental upkeep: `neighbeats update` (backup, scan, analyze, embed-lyrics,
+      sync-jellyfin; optional steps skipped when not set up).
+- [x] Startup time with all vectors loaded; if it is slow, cache a packed vector
+      file next to the database. => start time is ok
+- [x] Packaging: cron, systemd timer and NAS task examples, `backup` command
+      (VACUUM INTO, keeps the newest N).
+- [x] Docs (docs/operations.md): operations guide (first run, upgrades, what to do when the share is
       unmounted, how to rebuild the embeddings after changing model).
 
 ## Exit criteria

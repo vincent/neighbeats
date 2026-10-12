@@ -5,6 +5,9 @@
 #   mkdir -p data models                          # put the ONNX model in ./models
 #   export MUSIC_DIR=/path/to/your/music          # or put it in a .env file
 #
+# Or let it ask: `docker compose run --rm -it neighbeats onboard` (the config file
+# must exist first, see above; it downloads the models and sets the GPU choice).
+#
 # Run commands (the entrypoint is `neighbeats`):
 #   docker compose run --rm neighbeats scan
 #   docker compose run --rm neighbeats analyze -limit 20   # quick GPU check
@@ -23,9 +26,11 @@ services:
       # Jellyfin API key for sync-jellyfin; put it in .env, never in config.yaml.
       NEIGHBEATS_JELLYFIN_KEY: ${NEIGHBEATS_JELLYFIN_KEY:-}
     volumes:
-      - ./config.yaml:/config/config.yaml:ro
+      # Writable only so `onboard` can set path_map.remote and provider and
+      # download the models; every other command only reads them.
+      - ./config.yaml:/config/config.yaml
       - ./data:/data
-      - ./models:/models:ro
+      - ./models:/models
       # Read-only; the container path must match music_roots in the config.
       - type: bind
         source: ${MUSIC_DIR:?set MUSIC_DIR to the folder that holds your music}
