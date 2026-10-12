@@ -39,6 +39,9 @@ type Config struct {
 
 	// ModelPath is the Discogs-EffNet ONNX file used by `analyze`.
 	ModelPath string `yaml:"model_path"`
+	// LyricModelDir holds model.onnx and tokenizer.json of multilingual-e5-small,
+	// used by `embed-lyrics` and `path -theme`.
+	LyricModelDir string `yaml:"lyric_model_dir"`
 	// ORTLibrary is the libonnxruntime shared library; empty lets the system
 	// loader find it.
 	ORTLibrary string `yaml:"ort_library"`
@@ -107,6 +110,9 @@ func (c *Config) applyDefaults() error {
 	}
 	if c.ModelPath == "" {
 		c.ModelPath = "models/discogs-effnet-bsdynamic-1.onnx"
+	}
+	if c.LyricModelDir == "" {
+		c.LyricModelDir = "models/multilingual-e5-small"
 	}
 	switch c.Provider {
 	case "":

@@ -46,6 +46,12 @@ func TestSyncLifecycle(t *testing.T) {
 	if res.Tracks != 3 || res.Added != 1 || res.Empty != 1 || res.Errors != 0 {
 		t.Fatalf("first sync = %+v", res)
 	}
+	if res.Detected != 1 {
+		t.Errorf("languages detected = %d, want 1", res.Detected)
+	}
+	if langs, _ := st.LyricLangs(ctx); len(langs) != 1 {
+		t.Errorf("langs = %v", langs) // too short to tell, but recorded as undetermined
+	}
 
 	hits, err := st.SearchLyrics(ctx, "silver ocean", false, 10)
 	if err != nil || len(hits) != 1 || hits[0].Title != "Title a" {
@@ -67,7 +73,7 @@ func TestSyncLifecycle(t *testing.T) {
 	write("a.lrc", "[00:01.00]city lights at midnight\n")
 	later := time.Now().Add(2 * time.Second)
 	os.Chtimes(filepath.Join(music, "a.lrc"), later, later)
-	if res, _ = Sync(ctx, st); res.Updated != 1 {
+	if res, _ = Sync(ctx, st); res.Updated != 1 || res.Detected != 1 {
 		t.Fatalf("edit sync = %+v", res)
 	}
 	if hits, _ := st.SearchLyrics(ctx, "ocean", false, 10); len(hits) != 0 {

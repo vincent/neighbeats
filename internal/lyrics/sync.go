@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vincentlark/neighbeats/internal/lang"
 	"github.com/vincentlark/neighbeats/internal/store"
 )
 
@@ -22,6 +23,7 @@ type Result struct {
 	Removed   int // lyrics dropped because the .lrc is gone
 	Empty     int // .lrc files with no lyric text
 	Errors    int
+	Detected  int // languages guessed for lyrics that had none
 }
 
 // SidecarPath returns the .lrc path next to an audio file.
@@ -109,5 +111,33 @@ func Sync(ctx context.Context, st *store.Store) (Result, error) {
 			}
 		}
 	}
-	return res, flush()
+	if err := flush(); err != nil {
+		return res, err
+	}
+	res.Detected, err = DetectLanguages(ctx, st)
+	return res, err
+}
+
+// DetectLanguages guesses the language of every lyric that has none yet.
+func DetectLanguages(ctx context.Context, st *store.Store) (int, error) {
+	todo, err := st.LyricsWithoutLang(ctx)
+	if err != nil {
+		return 0, err
+	}
+	const chunk = 500
+	for start := 0; start < len(todo); start += chunk {
+		if err := ctx.Err(); err != nil {
+			return start, err
+		}
+		part := todo[start:min(start+chunk, len(todo))]
+		langs := make([]store.LyricLang, len(part))
+		for i, l := range part {
+			code, conf := lang.Detect(l.Text)
+			langs[i] = store.LyricLang{TrackID: l.TrackID, Lang: code, Confidence: conf}
+		}
+		if err := st.SetLyricLangs(ctx, langs); err != nil {
+			return start, err
+		}
+	}
+	return len(todo), nil
 }

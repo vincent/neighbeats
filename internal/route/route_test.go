@@ -237,6 +237,117 @@ func TestBiasChangesTheRoute(t *testing.T) {
 	}
 }
 
+// twoWays: from 1 to 4 through 2 (slightly better audio) or through 6.
+func twoWays() fake {
+	f := chain()
+	f.adj[1] = []vecindex.Neighbour{nb(2, 0.72), nb(6, 0.70)}
+	f.adj[2] = []vecindex.Neighbour{nb(4, 0.7)}
+	f.adj[6] = []vecindex.Neighbour{nb(4, 0.7)}
+	f.adj[4] = []vecindex.Neighbour{nb(2, 0.7), nb(6, 0.7)}
+	f.sim[[2]int64{6, 4}] = 0.7
+	f.sim[[2]int64{2, 4}] = 0.7
+	return f
+}
+
+func TestLanguageJumpPenalty(t *testing.T) {
+	langs := map[int64]string{1: "eng", 2: "fra", 6: "eng", 4: "eng"}
+	lang := func(id int64) string { return langs[id] }
+	if r, _ := Find(twoWays(), 1, 4, Options{}); !eq(ids(r), []int64{1, 2, 4}) {
+		t.Fatalf("without penalty %v", ids(r))
+	}
+	r, _ := Find(twoWays(), 1, 4, Options{Lang: lang, LangPenalty: 0.5})
+	if !eq(ids(r), []int64{1, 6, 4}) {
+		t.Fatalf("with penalty %v", ids(r))
+	}
+	// Unknown languages are never a jump.
+	langs[6] = ""
+	langs[2] = ""
+	if r, _ = Find(twoWays(), 1, 4, Options{Lang: lang, LangPenalty: 0.5}); !eq(ids(r), []int64{1, 2, 4}) {
+		t.Fatalf("unknown languages %v", ids(r))
+	}
+	// The reason names the jump when it is taken anyway.
+	langs[2] = "fra"
+	r, _ = Find(twoWays(), 1, 4, Options{Lang: lang, LangPenalty: 0.01})
+	if !strings.Contains(r.Steps[1].Reason, "language eng to fra") {
+		t.Errorf("reason %q", r.Steps[1].Reason)
+	}
+}
+
+func TestThemeBonus(t *testing.T) {
+	theme := func(id int64) float64 {
+		if id == 6 {
+			return 0.4
+		}
+		return 0
+	}
+	r, _ := Find(twoWays(), 1, 4, Options{Theme: theme, ThemeWeight: 1})
+	if !eq(ids(r), []int64{1, 6, 4}) {
+		t.Fatalf("with theme %v", ids(r))
+	}
+	if !strings.Contains(r.Steps[1].Reason, "theme 0.40") {
+		t.Errorf("reason %q", r.Steps[1].Reason)
+	}
+	if r, _ = Find(twoWays(), 1, 4, Options{Theme: theme}); !eq(ids(r), []int64{1, 2, 4}) {
+		t.Fatalf("zero weight %v", ids(r)) // no weight, no effect
+	}
+}
+
+func TestPairNudgesTheChoice(t *testing.T) {
+	// Lyrics say 1 and 6 go together; the audio alone prefers 2.
+	pair := func(a, b int64, c float32) float32 {
+		if a == 1 && b == 6 {
+			return c + 0.2
+		}
+		return c
+	}
+	r, _ := Find(twoWays(), 1, 4, Options{Pair: pair})
+	if !eq(ids(r), []int64{1, 6, 4}) {
+		t.Fatalf("with pair %v", ids(r))
+	}
+	if r.Steps[1].Cosine != 0.70 {
+		t.Errorf("Step.Cosine should stay the audio cosine, got %v", r.Steps[1].Cosine)
+	}
+}
+
+func TestSpreadLyricHooks(t *testing.T) {
+	ix := line(t, 91) // one track per degree; the middle waypoint is track 45
+	if r, _ := Spread(ix, 0, 90, 3, Options{}); r.Steps[1].ID != 45 {
+		t.Fatalf("plain pick %v", ids(r))
+	}
+	// A theme match a few degrees away beats the exact waypoint.
+	themed, _ := Spread(ix, 0, 90, 3, Options{ThemeWeight: 3, Theme: func(id int64) float64 {
+		if id == 50 {
+			return 0.5
+		}
+		return 0
+	}})
+	if themed.Steps[1].ID != 50 || !strings.Contains(themed.Steps[1].Reason, "theme 0.50") {
+		t.Errorf("themed pick %v %q", ids(themed), themed.Steps[1].Reason)
+	}
+	// Leaving the language of the start costs: the exact waypoint is French.
+	lang := func(id int64) string {
+		if id == 45 {
+			return "fra"
+		}
+		return "eng"
+	}
+	away, _ := Spread(ix, 0, 90, 3, Options{Lang: lang, LangPenalty: 0.5})
+	if away.Steps[1].ID == 45 {
+		t.Errorf("language penalty ignored: %v", ids(away))
+	}
+	// The nudge from lyrics changes which neighbour of the previous track is liked.
+	pair := func(a, b int64, c float32) float32 {
+		if b == 46 {
+			return c + 0.3
+		}
+		return c
+	}
+	nudged, _ := Spread(ix, 0, 90, 3, Options{Pair: pair, Smooth: 5})
+	if nudged.Steps[1].ID == 45 {
+		t.Errorf("pair nudge ignored: %v", ids(nudged))
+	}
+}
+
 func TestSpreadSmoothKeepsTheJourney(t *testing.T) {
 	ix := line(t, 91)
 	r, err := Spread(ix, 0, 90, 7, Options{Smooth: 0.5, Beam: 8})

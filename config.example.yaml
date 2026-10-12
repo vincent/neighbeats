@@ -44,6 +44,11 @@ path_map:
 # discogs-effnet-bsdynamic-1.onnx; CC BY-NC-SA, personal use).
 model_path: /models/discogs-effnet-bsdynamic-1.onnx
 
+# Lyric text model for `embed-lyrics` and `path -theme`: a folder with model.onnx and
+# tokenizer.json of intfloat/multilingual-e5-small (MIT), see the README. Optional:
+# without it everything works on audio alone.
+lyric_model_dir: /models/multilingual-e5-small
+
 # ONNX Runtime shared library. Not needed in Docker or when libonnxruntime.so is
 # on the loader path. The Go binding is built for ORT 1.29; newer 1.x usually works.
 # ort_library: /usr/local/lib/libonnxruntime.so

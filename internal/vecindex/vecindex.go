@@ -46,6 +46,7 @@ type Index struct {
 	pos  map[int64]int
 	dim  int
 	vecs []float32 // len(ids)*dim, unit length (or all zero)
+	mean []float32 // subtracted at Build (nil when not centred)
 }
 
 // Build copies and normalises the vectors. ids[i] belongs to vectors[i].
@@ -76,8 +77,10 @@ func Build(ids []int64, vectors [][]float32, opt Options) (*Index, error) {
 				mean[j] += float64(x)
 			}
 		}
+		ix.mean = make([]float32, dim)
 		for j := range mean {
 			mean[j] /= float64(len(ids))
+			ix.mean[j] = float32(mean[j])
 		}
 		for i := range ids {
 			row := ix.vecs[i*dim : (i+1)*dim]
@@ -105,6 +108,9 @@ func Build(ids []int64, vectors [][]float32, opt Options) (*Index, error) {
 
 // Len is the number of indexed tracks.
 func (ix *Index) Len() int { return len(ix.ids) }
+
+// IDs returns the indexed track ids in index order.
+func (ix *Index) IDs() []int64 { return append([]int64(nil), ix.ids...) }
 
 // Dim is the vector length.
 func (ix *Index) Dim() int { return ix.dim }
@@ -209,6 +215,30 @@ func (ix *Index) Blend(a, b int64, t float64) ([]float32, error) {
 		out[i] = float32(wa*float64(ra[i]) + wb*float64(rb[i]))
 	}
 	return unit(out), nil
+}
+
+// Project maps a raw vector from the space the index was built from (for
+// example a freshly computed embedding) into the index: the same centring,
+// then unit length.
+func (ix *Index) Project(raw []float32) ([]float32, error) {
+	if len(raw) != ix.dim {
+		return nil, fmt.Errorf("vector has %d values, want %d", len(raw), ix.dim)
+	}
+	v := append([]float32(nil), raw...)
+	for j := range ix.mean {
+		v[j] -= ix.mean[j]
+	}
+	return unit(v), nil
+}
+
+// CosineTo is the cosine between a unit vector q (from Project) and an
+// indexed track; ok is false if the track is not indexed.
+func (ix *Index) CosineTo(q []float32, id int64) (c float32, ok bool) {
+	p, ok := ix.pos[id]
+	if !ok {
+		return 0, false
+	}
+	return ix.dot(q, p), true
 }
 
 func unit(v []float32) []float32 {

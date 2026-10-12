@@ -136,6 +136,28 @@ var migrations = []string{
 		item_id  TEXT PRIMARY KEY,
 		track_id INTEGER REFERENCES tracks(id) ON DELETE CASCADE
 	);`,
+
+	// v5: what is derived from lyrics. lyric_lang is the detected language
+	// (a separate table: updating lyrics itself would rewrite its full-text
+	// index); lyric_embeddings holds one text vector per track and model, with
+	// the .lrc fingerprint it was computed from so a changed file is
+	// re-embedded.
+	`CREATE TABLE lyric_lang (
+		track_id   INTEGER PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE,
+		lang       TEXT    NOT NULL,
+		confidence REAL    NOT NULL
+	);
+	CREATE TABLE lyric_embeddings (
+		track_id   INTEGER NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+		model      TEXT    NOT NULL,
+		vector     BLOB    NOT NULL,
+		dim        INTEGER NOT NULL,
+		tokens     INTEGER NOT NULL,
+		size       INTEGER NOT NULL,
+		mtime_ns   INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL,
+		PRIMARY KEY (track_id, model)
+	);`,
 }
 
 // Store is a handle on the database.

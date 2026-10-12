@@ -37,7 +37,26 @@ docker compose run --rm neighbeats path -length 15 -out /data/trip.m3u8 "song a"
 docker compose run --rm neighbeats sync-jellyfin        # plays, favourites, skips (needs NEIGHBEATS_JELLYFIN_KEY in .env)
 docker compose run --rm neighbeats path -mode rediscover -length 15 "song a" "song b"
 docker compose run --rm neighbeats lyrics search silver sea
+docker compose run --rm neighbeats lyrics langs -samples 5    # detected lyric languages, to check by eye
+docker compose run --rm neighbeats embed-lyrics         # lyric vectors (needs the lyric model, below)
+docker compose run --rm neighbeats path -theme "sea, night" -length 15 "song a" "song b"
+docker compose run --rm neighbeats path -from-lyric "walking by the ocean" -to-id 123 -length 15
 ```
+
+### Lyric model (optional)
+
+Lyrics only add a small nudge to a route, and nothing needs them. To use them, put the
+multilingual-e5-small text model next to the music model (MIT licence, 470 MB):
+
+```sh
+mkdir -p models/multilingual-e5-small && cd models/multilingual-e5-small
+B=https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/onnx
+curl -LO $B/model.onnx && curl -LO $B/tokenizer.json
+```
+
+Then `scan` (it also detects each lyric's language), `embed-lyrics` (minutes, resumable) and
+`path` uses the lyrics by itself: `-lyric-weight` (0.2), `-lang-penalty` (0.5), `-theme`,
+`-theme-weight`. Set a weight to 0 to switch that part off.
 
 `compose.yaml` documents the mounts and the GPU reservation. `--config FILE` or
 `$NEIGHBEATS_CONFIG` selects another config file (compose sets the latter).

@@ -40,16 +40,12 @@ type ortEmbedder struct {
 	mu       sync.Mutex // ORT sessions are thread-safe, but one lock keeps GPU memory use predictable
 }
 
-// NewORT loads the model. In auto mode a CUDA failure is logged and the
-// session is rebuilt on the CPU.
-func NewORT(o ORTOptions) (Embedder, error) {
-	if o.Provider == "" {
-		o.Provider = ProviderAuto
-	}
+// InitORT loads the ONNX Runtime library once per process.
+func InitORT(libraryPath string) error {
 	envOnce.Do(func() {
 		// The binding's own default is "onnxruntime.so", which no package
 		// ships; let the system loader find the usual name instead.
-		lib := o.LibraryPath
+		lib := libraryPath
 		if lib == "" {
 			lib = "libonnxruntime.so"
 		}
@@ -57,56 +53,77 @@ func NewORT(o ORTOptions) (Embedder, error) {
 		envErr = ort.InitializeEnvironment()
 	})
 	if envErr != nil {
-		return nil, fmt.Errorf("init onnxruntime (library %q): %w", o.LibraryPath, envErr)
+		return fmt.Errorf("init onnxruntime (library %q): %w", libraryPath, envErr)
 	}
+	return nil
+}
 
+// OpenSession loads a model with the named inputs and outputs. In auto mode a
+// CUDA failure is logged and the session is rebuilt on the CPU. It returns
+// the provider in use ("cuda" or "cpu").
+func OpenSession(o ORTOptions, inputs, outputs []string) (*ort.DynamicAdvancedSession, string, error) {
+	if o.Provider == "" {
+		o.Provider = ProviderAuto
+	}
+	if err := InitORT(o.LibraryPath); err != nil {
+		return nil, "", err
+	}
 	switch o.Provider {
 	case ProviderCPU:
-		return newSession(o, false)
+		return newSession(o, inputs, outputs, false)
 	case ProviderCUDA:
-		return newSession(o, true)
+		return newSession(o, inputs, outputs, true)
 	case ProviderAuto:
-		e, err := newSession(o, true)
+		s, name, err := newSession(o, inputs, outputs, true)
 		if err == nil {
-			return e, nil
+			return s, name, nil
 		}
 		if o.Logf != nil {
 			o.Logf("CUDA unavailable (%v); using the CPU", err)
 		}
-		return newSession(o, false)
+		return newSession(o, inputs, outputs, false)
 	}
-	return nil, fmt.Errorf("unknown provider %q (want auto, cuda or cpu)", o.Provider)
+	return nil, "", fmt.Errorf("unknown provider %q (want auto, cuda or cpu)", o.Provider)
 }
 
-func newSession(o ORTOptions, cuda bool) (Embedder, error) {
-	opts, err := ort.NewSessionOptions()
+// NewORT loads the model. In auto mode a CUDA failure is logged and the
+// session is rebuilt on the CPU.
+func NewORT(o ORTOptions) (Embedder, error) {
+	sess, name, err := OpenSession(o, []string{"melspectrogram"}, []string{"embeddings"})
 	if err != nil {
 		return nil, err
+	}
+	return &ortEmbedder{sess: sess, provider: name}, nil
+}
+
+func newSession(o ORTOptions, inputs, outputs []string, cuda bool) (*ort.DynamicAdvancedSession, string, error) {
+	opts, err := ort.NewSessionOptions()
+	if err != nil {
+		return nil, "", err
 	}
 	defer opts.Destroy()
 	if o.IntraOpThreads > 0 {
 		if err := opts.SetIntraOpNumThreads(o.IntraOpThreads); err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
 	name := "cpu"
 	if cuda {
 		co, err := ort.NewCUDAProviderOptions()
 		if err != nil {
-			return nil, fmt.Errorf("cuda options: %w", err)
+			return nil, "", fmt.Errorf("cuda options: %w", err)
 		}
 		defer co.Destroy()
 		if err := opts.AppendExecutionProviderCUDA(co); err != nil {
-			return nil, fmt.Errorf("cuda provider: %w", err)
+			return nil, "", fmt.Errorf("cuda provider: %w", err)
 		}
 		name = "cuda"
 	}
-	sess, err := ort.NewDynamicAdvancedSession(o.ModelPath,
-		[]string{"melspectrogram"}, []string{"embeddings"}, opts)
+	sess, err := ort.NewDynamicAdvancedSession(o.ModelPath, inputs, outputs, opts)
 	if err != nil {
-		return nil, fmt.Errorf("load %s on %s: %w", o.ModelPath, name, err)
+		return nil, "", fmt.Errorf("load %s on %s: %w", o.ModelPath, name, err)
 	}
-	return &ortEmbedder{sess: sess, provider: name}, nil
+	return sess, name, nil
 }
 
 func (e *ortEmbedder) Embed(patches []float32, n int) ([]float32, error) {

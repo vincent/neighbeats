@@ -57,17 +57,23 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	raw := fs.Bool("raw", false, "plain cosine; do not centre the vectors on the library mean")
 	modeName := fs.String("mode", "", "taste: comfort, explore, rediscover or none (default comfort when history is synced)")
 	userName := fs.String("user", "", "whose history to use (default: jellyfin.user in the config)")
+	fromLyric := fs.String("from-lyric", "", "start at the track whose lyrics contain this line (instead of the first argument)")
+	toLyric := fs.String("to-lyric", "", "destination: the track whose lyrics contain this line (instead of the second argument)")
+	lyricWeight := fs.Float64("lyric-weight", defaultLyricWeight, "share of lyric similarity in a hop, for tracks that both have lyric vectors (0 = audio only)")
+	langPenalty := fs.Float64("lang-penalty", defaultLangPenalty, "cost of a hop between two different lyric languages (0 = off)")
+	theme := fs.String("theme", "", "steer the route toward tracks whose lyrics match this phrase, e.g. \"sea, night\"")
+	themeWeight := fs.Float64("theme-weight", defaultThemeWeight, "with -theme: how strongly a matching lyric pulls")
 	out := fs.String("out", "", "write the route as an M3U8 playlist")
 	words, err := parseInterspersed(fs, args)
 	if err != nil {
 		return err
 	}
-	const usageMsg = "usage: neighbeats path [flags] <from> <to>   (each a path, recording MBID or words; or -from-id / -to-id)"
+	const usageMsg = "usage: neighbeats path [flags] <from> <to>   (each a path, recording MBID or words; or -from-id / -to-id / -from-lyric / -to-lyric)"
 	need := 2
-	if *fromID != 0 {
+	if *fromID != 0 || *fromLyric != "" {
 		need--
 	}
-	if *toID != 0 {
+	if *toID != 0 || *toLyric != "" {
 		need--
 	}
 	if len(words) != need {
@@ -80,6 +86,16 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	defer st.Close()
 
 	a, b := *fromID, *toID
+	if a == 0 && *fromLyric != "" {
+		if a, err = resolveLyric(ctx, st, *fromLyric, stdout, stderr); err != nil {
+			return err
+		}
+	}
+	if b == 0 && *toLyric != "" {
+		if b, err = resolveLyric(ctx, st, *toLyric, stdout, stderr); err != nil {
+			return err
+		}
+	}
 	if a == 0 {
 		if a, err = resolveTrack(ctx, st, words[0], stdout, stderr); err != nil {
 			return err
@@ -133,6 +149,19 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	if err := applyTaste(ctx, st, cfg, *userName, *modeName, &opt, stderr); err != nil {
 		return err
 	}
+	lyr, err := loadLyricSignals(ctx, st, cfg, ix, lyricOptions{
+		weight: *lyricWeight, langPenalty: *langPenalty, themeWeight: *themeWeight, theme: *theme,
+	}, stderr)
+	if err != nil {
+		return err
+	}
+	lyr.apply(&opt)
+	var shared func(a, b int64) []string
+	if lyr != nil && *explain {
+		if shared, err = sharedWords(ctx, st); err != nil {
+			return err
+		}
+	}
 
 	exclude, nLong, err := longTracks(ctx, st, *maxMin)
 	if err != nil {
@@ -181,6 +210,9 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 			fmt.Fprintf(stdout, "   (cos %.2f, score %.2f", s.Cosine, s.Score)
 			if _, note, ok := strings.Cut(s.Reason, "; "); ok {
 				fmt.Fprintf(stdout, "; %s", note)
+			}
+			if ln := lyr.notes(r.Steps[i-1].ID, s.ID, shared); ln != "" {
+				fmt.Fprintf(stdout, "; %s", ln)
 			}
 			fmt.Fprint(stdout, ")")
 		}

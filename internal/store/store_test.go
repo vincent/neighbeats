@@ -227,3 +227,114 @@ func TestSongKey(t *testing.T) {
 		t.Error("fallbacks")
 	}
 }
+
+func TestLyricFeatures(t *testing.T) {
+	st, ctx := open(t), context.Background()
+	run, _ := st.StartRun(ctx, []string{"/m"})
+	if err := st.UpsertTracks(ctx, run, []Track{track("/m/a.mp3"), track("/m/b.mp3")}); err != nil {
+		t.Fatal(err)
+	}
+	refs, _ := st.TrackRefs(ctx)
+	a, b := refs[0].ID, refs[1].ID
+	if err := st.UpsertLyrics(ctx, []Lyrics{
+		{TrackID: a, Path: "/m/a.lrc", Size: 5, MtimeNs: 1, Text: "alpha", LineCount: 1},
+		{TrackID: b, Path: "/m/b.lrc", Size: 6, MtimeNs: 1, Text: "beta", LineCount: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Languages: only lyrics without a guess are listed, and new text drops the guess.
+	todo, _ := st.LyricsWithoutLang(ctx)
+	if len(todo) != 2 {
+		t.Fatalf("without lang: %v", todo)
+	}
+	if err := st.SetLyricLangs(ctx, []LyricLang{{a, "eng", 1}, {b, "und", 0.3}}); err != nil {
+		t.Fatal(err)
+	}
+	if todo, _ = st.LyricsWithoutLang(ctx); len(todo) != 0 {
+		t.Fatalf("still without lang: %v", todo)
+	}
+	if langs, _ := st.LyricLangs(ctx); langs[a] != "eng" || langs[b] != "und" {
+		t.Fatalf("langs: %v", langs)
+	}
+	if cs, _ := st.LangCounts(ctx); len(cs) != 2 {
+		t.Fatalf("counts: %v", cs)
+	}
+	if err := st.UpsertLyrics(ctx, []Lyrics{{TrackID: a, Path: "/m/a.lrc", Size: 7, MtimeNs: 2, Text: "alpha two", LineCount: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	if todo, _ = st.LyricsWithoutLang(ctx); len(todo) != 1 || todo[0].TrackID != a {
+		t.Fatalf("after change: %v", todo)
+	}
+
+	// Embeddings: pending until stored, pending again when the file changes.
+	const model = "m"
+	p, _ := st.PendingLyricEmbeddings(ctx, model)
+	if len(p) != 2 {
+		t.Fatalf("pending: %v", p)
+	}
+	if err := st.SaveLyricEmbeddings(ctx, model, []LyricEmbedding{
+		{TrackID: a, Vector: []float32{1, 0}, Tokens: 3, Size: 7, MtimeNs: 2},
+		{TrackID: b, Vector: []float32{0, 1}, Tokens: 4, Size: 6, MtimeNs: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ = st.PendingLyricEmbeddings(ctx, model); len(p) != 0 {
+		t.Fatalf("pending after save: %v", p)
+	}
+	es, _ := st.LyricEmbeddings(ctx, model)
+	if len(es) != 2 || es[0].Vector[0] != 1 || es[1].Vector[1] != 1 {
+		t.Fatalf("embeddings: %+v", es)
+	}
+	if err := st.UpsertLyrics(ctx, []Lyrics{{TrackID: b, Path: "/m/b.lrc", Size: 9, MtimeNs: 3, Text: "beta two", LineCount: 1}}); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ = st.PendingLyricEmbeddings(ctx, model); len(p) != 1 || p[0].TrackID != b {
+		t.Fatalf("pending after change: %v", p)
+	}
+	// Removing lyrics removes what was derived from them.
+	if err := st.DeleteLyrics(ctx, []int64{a}); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := st.LyricEmbeddingCount(ctx, model); n != 1 {
+		t.Fatalf("embeddings left: %d", n)
+	}
+	if err := st.SetLyricLangs(ctx, []LyricLang{{b, "fra", 0.9}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.DeleteLyrics(ctx, []int64{b}); err != nil {
+		t.Fatal(err)
+	}
+	if langs, _ := st.LyricLangs(ctx); len(langs) != 0 {
+		t.Fatalf("langs left: %v", langs)
+	}
+}
+
+func TestLangSamples(t *testing.T) {
+	st, ctx := open(t), context.Background()
+	run, _ := st.StartRun(ctx, []string{"/m"})
+	var ts []Track
+	for _, n := range []string{"a", "b", "c", "d", "e", "f"} {
+		ts = append(ts, track("/m/"+n+".mp3"))
+	}
+	if err := st.UpsertTracks(ctx, run, ts); err != nil {
+		t.Fatal(err)
+	}
+	refs, _ := st.TrackRefs(ctx)
+	var ls []Lyrics
+	var gs []LyricLang
+	for _, r := range refs {
+		ls = append(ls, Lyrics{TrackID: r.ID, Path: r.Path + ".lrc", Size: 1, MtimeNs: 1, Text: "text", LineCount: 1})
+		gs = append(gs, LyricLang{r.ID, "eng", 1})
+	}
+	if err := st.UpsertLyrics(ctx, ls); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetLyricLangs(ctx, gs); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.LangSamples(ctx, "eng", 3)
+	if err != nil || len(got) == 0 || len(got) > 3 {
+		t.Fatalf("samples: %v %v", got, err)
+	}
+}

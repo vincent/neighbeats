@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/vincentlark/neighbeats/internal/vecindex"
 )
@@ -51,6 +52,21 @@ type Options struct {
 	// Bias adjusts the cost of entering a track (negative = preferred) and may
 	// give a short reason. May be nil.
 	Bias func(id int64) (float64, string)
+
+	// Lyrics. Pair turns the audio cosine of two consecutive tracks into the
+	// cosine the route is judged on (nil = audio only); the lyric part of it
+	// is a nudge for pairs that both have lyrics. Lang gives a track's
+	// language ("" = unknown) and LangPenalty is the cost of a hop between two
+	// known, different languages. Theme gives how well a track's lyrics match
+	// a theme (a cosine, 0 = no match or no lyrics) and ThemeWeight is the
+	// cost taken off per unit of it. Penalties and weights are in the units of
+	// Bias.
+	Pair        func(a, b int64, cos float32) float32
+	Lang        func(id int64) string
+	LangPenalty float64
+	Theme       func(id int64) float64
+	ThemeWeight float64
+
 	// Forbidden tracks may not be intermediates. The endpoints are always allowed.
 	Forbidden map[int64]bool
 }
@@ -82,6 +98,45 @@ func (o Options) withDefaults() Options {
 		o.Heuristic = d.Heuristic
 	}
 	return o
+}
+
+// hopExtra is the cost of the lyric-related side of entering track to from
+// track from (language jump, theme match) and a short reason for it.
+func (o *Options) hopExtra(from, to int64) (float64, string) {
+	var cost float64
+	var notes []string
+	if o.Lang != nil && o.LangPenalty != 0 {
+		if a, b := o.Lang(from), o.Lang(to); a != "" && b != "" && a != b {
+			cost += o.LangPenalty
+			notes = append(notes, fmt.Sprintf("language %s to %s", a, b))
+		}
+	}
+	if o.Theme != nil && o.ThemeWeight != 0 {
+		if t := o.Theme(to); t > 0 {
+			cost -= o.ThemeWeight * t
+			notes = append(notes, fmt.Sprintf("theme %.2f", t))
+		}
+	}
+	return cost, strings.Join(notes, "; ")
+}
+
+// pair is the cosine of a hop after the lyric nudge.
+func (o *Options) pair(a, b int64, cos float32) float32 {
+	if o.Pair == nil {
+		return cos
+	}
+	return o.Pair(a, b, cos)
+}
+
+// joinNotes joins non-empty reasons.
+func joinNotes(notes ...string) string {
+	var keep []string
+	for _, n := range notes {
+		if n != "" {
+			keep = append(keep, n)
+		}
+	}
+	return strings.Join(keep, "; ")
 }
 
 // Step is one track on a route. Cosine and Score describe the hop that
@@ -201,7 +256,7 @@ func Find(g Graph, a, b int64, opt Options) (Route, error) {
 			if !allowed(cur, c.ID, b, &opt) {
 				continue
 			}
-			score := vecindex.Score(c.Cosine, opt.K)
+			score := vecindex.Score(opt.pair(cur.id, c.ID, c.Cosine), opt.K)
 			cost := opt.Base + opt.Scale*(1-score) + opt.Hop
 			var note string
 			if opt.Bias != nil {
@@ -209,6 +264,9 @@ func Find(g Graph, a, b int64, opt Options) (Route, error) {
 				d, note = opt.Bias(c.ID)
 				cost += d
 			}
+			extra, enote := opt.hopExtra(cur.id, c.ID)
+			cost += extra
+			note = joinNotes(note, enote)
 			cost = math.Max(opt.Hop+0.05, cost) // a hop is never free
 			gNew := cur.g + cost
 			nd := nodes[c.ID]

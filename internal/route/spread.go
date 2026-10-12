@@ -71,13 +71,17 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 				if err != nil {
 					return Route{}, err
 				}
-				cost += opt.Smooth * (1 - float64(sim))
+				cost += opt.Smooth * (1 - float64(opt.pair(s.n.id, c.ID, sim)))
 				if i == n-2 && opt.Smooth > 0 {
 					end, err := g.Similarity(c.ID, b)
 					if err != nil {
 						return Route{}, err
 					}
-					cost += opt.Smooth * (1 - float64(end))
+					cost += opt.Smooth * (1 - float64(opt.pair(c.ID, b, end)))
+				}
+				if i == n-2 { // the last hop is to the destination
+					last, _ := opt.hopExtra(c.ID, b)
+					cost += biasWeight * last
 				}
 				var note string
 				if opt.Bias != nil {
@@ -85,6 +89,9 @@ func Spread(g VectorGraph, a, b int64, n int, opt Options) (Route, error) {
 					d, note = opt.Bias(c.ID)
 					cost += biasWeight * d
 				}
+				extra, enote := opt.hopExtra(s.n.id, c.ID)
+				cost += biasWeight * extra
+				note = joinNotes(note, enote)
 				next = append(next, state{&node{id: c.ID, parent: s.n, hops: i, cos: sim,
 					score: vecindex.Score(sim, opt.K), note: note}, cost})
 			}

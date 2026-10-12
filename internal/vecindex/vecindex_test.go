@@ -148,6 +148,31 @@ func TestExclude(t *testing.T) {
 	}
 }
 
+func TestProject(t *testing.T) {
+	raw := [][]float32{{3, 1}, {1, 3}, {2, 2}}
+	ix, err := Build([]int64{1, 2, 3}, raw, Options{Center: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An indexed vector projects onto its own row.
+	q, err := ix.Project(raw[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c, ok := ix.CosineTo(q, 1); !ok || c < 0.9999 {
+		t.Errorf("own row: %v %v", c, ok)
+	}
+	if c, _ := ix.CosineTo(q, 2); c > -0.9999 {
+		t.Errorf("opposite row: %v", c) // centred: (3,1) and (1,3) point in opposite directions
+	}
+	if _, ok := ix.CosineTo(q, 99); ok {
+		t.Error("unknown id should not be ok")
+	}
+	if _, err := ix.Project([]float32{1}); err == nil {
+		t.Error("wrong dimension should fail")
+	}
+}
+
 func TestScore(t *testing.T) {
 	if Score(1, 2.3) != 1 {
 		t.Error("identical tracks must score 1")

@@ -15,9 +15,11 @@ import (
 
 	"github.com/vincentlark/neighbeats/internal/config"
 	"github.com/vincentlark/neighbeats/internal/embed"
+	"github.com/vincentlark/neighbeats/internal/lang"
 	"github.com/vincentlark/neighbeats/internal/lyrics"
 	"github.com/vincentlark/neighbeats/internal/scan"
 	"github.com/vincentlark/neighbeats/internal/store"
+	"github.com/vincentlark/neighbeats/internal/textembed"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".
@@ -30,7 +32,8 @@ Usage:
 
 Commands:
   scan      index the music folders and sibling .lrc lyrics (incremental)
-  lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...
+  lyrics    search lyrics: neighbeats lyrics search [-n N] [-phrase] words...; or list their languages: neighbeats lyrics langs [-samples N]
+  embed-lyrics  embed lyrics with the text model (resumable): [-limit N] [-provider P]
   analyze   embed tracks with the music model (resumable): [-retry-errors] [-limit N] [-provider P]
   similar   tracks that sound like one: neighbeats similar [-n N] [-max-per-artist N] [-allow-adjacent] [-raw] <path|mbid|words...>
   path      playlist travelling from one track to another: neighbeats path [-length N | -max-hops N] [-mode M] [-user U] [-explain] [-out f.m3u8] <from> <to>
@@ -74,6 +77,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdScan(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "lyrics":
 		err = cmdLyrics(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "embed-lyrics":
+		err = cmdEmbedLyrics(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "analyze":
 		err = cmdAnalyze(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "similar":
@@ -140,20 +145,31 @@ func cmdScan(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 		return err
 	}
 	lr, err := lyrics.Sync(ctx, st)
-	fmt.Fprintf(stdout, "lyrics: %d added, %d updated, %d unchanged, %d removed, %d empty, %d errors\n",
-		lr.Added, lr.Updated, lr.Unchanged, lr.Removed, lr.Empty, lr.Errors)
+	fmt.Fprintf(stdout, "lyrics: %d added, %d updated, %d unchanged, %d removed, %d empty, %d errors; %d languages detected\n",
+		lr.Added, lr.Updated, lr.Unchanged, lr.Removed, lr.Empty, lr.Errors, lr.Detected)
 	return err
 }
 
 func cmdLyrics(ctx context.Context, cfgPath string, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 || args[0] != "search" {
-		return errors.New("usage: neighbeats lyrics search [-n N] [-phrase] words...")
+	const usageMsg = "usage: neighbeats lyrics search [-n N] [-phrase] words...\n       neighbeats lyrics langs [-samples N]"
+	if len(args) == 0 {
+		return errors.New(usageMsg)
 	}
+	switch args[0] {
+	case "search":
+		return cmdLyricsSearch(ctx, cfgPath, args[1:], stdout, stderr)
+	case "langs":
+		return cmdLyricsLangs(ctx, cfgPath, args[1:], stdout, stderr)
+	}
+	return errors.New(usageMsg)
+}
+
+func cmdLyricsSearch(ctx context.Context, cfgPath string, args []string, stdout, stderr io.Writer) error {
 	fs := flag.NewFlagSet("lyrics search", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	n := fs.Int("n", 10, "maximum results")
 	phrase := fs.Bool("phrase", false, "match the words as an exact phrase")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 {
@@ -174,6 +190,59 @@ func cmdLyrics(ctx context.Context, cfgPath string, args []string, stdout, stder
 	}
 	for _, h := range hits {
 		fmt.Fprintf(stdout, "%s - %s\n    %s\n", h.Artist, h.Title, strings.ReplaceAll(h.Snippet, "\n", " / "))
+	}
+	return nil
+}
+
+// cmdLyricsLangs shows the detected languages, optionally with a few tracks
+// of each to check the guesses by eye.
+func cmdLyricsLangs(ctx context.Context, cfgPath string, args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("lyrics langs", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	samples := fs.Int("samples", 0, "also show N example tracks for each of the six most common languages")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	_, st, err := open(cfgPath)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	if _, err := lyrics.DetectLanguages(ctx, st); err != nil {
+		return err
+	}
+	counts, err := st.LangCounts(ctx)
+	if err != nil {
+		return err
+	}
+	if len(counts) == 0 {
+		fmt.Fprintln(stdout, "no languages yet; run `neighbeats scan` (it detects them for every lyric)")
+		return nil
+	}
+	total := 0
+	for _, c := range counts {
+		total += c.Count
+	}
+	for _, c := range counts {
+		fmt.Fprintf(stdout, "%-4s %-16s %6d  %s\n", c.Lang, lang.Name(c.Lang), c.Count, pct(c.Count, total))
+	}
+	shown := 0
+	for _, c := range counts {
+		if *samples <= 0 || shown == 6 {
+			break
+		}
+		if c.Lang == lang.Undetermined {
+			continue
+		}
+		shown++
+		rows, err := st.LangSamples(ctx, c.Lang, *samples)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "\n%s:\n", lang.Name(c.Lang))
+		for _, r := range rows {
+			fmt.Fprintf(stdout, "  %s - %s (conf %.2f)\n      %s\n", r.Artist, r.Title, r.Confidence, strings.ReplaceAll(r.Excerpt, "\n", " / "))
+		}
 	}
 	return nil
 }
@@ -215,6 +284,11 @@ func cmdStats(ctx context.Context, cfgPath string, stdout io.Writer) error {
 		return err
 	} else {
 		fmt.Fprintf(stdout, "with lyrics:          %d  %s (%d synced)\n", l.WithLyrics, pct(l.WithLyrics, s.Tracks), l.Synced)
+		if n, err := st.LyricEmbeddingCount(ctx, textembed.ModelID); err != nil {
+			return err
+		} else if l.WithLyrics > 0 {
+			fmt.Fprintf(stdout, "lyrics embedded:      %d  %s\n", n, pct(n, l.WithLyrics))
+		}
 	}
 
 	if r, err := st.LastRun(ctx); err != nil {

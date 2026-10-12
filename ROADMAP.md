@@ -22,8 +22,9 @@ GTX 1060 6 GB), no Python at runtime if it can be avoided. The build needs cgo
 | M5 | Tuning, upkeep, packaging | planned | [M5](docs/roadmap/M5-full-library.md) |
 
 Lyrics (sibling `.lrc` files, 36.5% of tracks): [L1-L3](docs/roadmap/L-lyrics.md).
-L1 (ingest + full-text search) is **done**; L2 (language, keywords) can happen any time;
-L3 (embeddings and blending) waits for M3.
+L1 (ingest + full-text search) is **done**; L2 (language, keywords, lyric endpoints) and L3
+(lyric embeddings, blend, theme steering) are **built**; the listening test and the weights
+are pending, and the model has not yet been run on the NAS GPU.
 
 Later (not scheduled): [docs/roadmap/later.md](docs/roadmap/later.md).
 

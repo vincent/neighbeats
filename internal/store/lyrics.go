@@ -98,6 +98,10 @@ ON CONFLICT(track_id) DO UPDATE SET path=excluded.path, size=excluded.size,
 			if _, err := stmt.ExecContext(ctx, l.TrackID, l.Path, l.Size, l.MtimeNs, l.Text, l.Synced, l.LineCount, now); err != nil {
 				return err
 			}
+			// A new text needs a new language guess (embeddings notice by fingerprint).
+			if _, err := tx.ExecContext(ctx, `DELETE FROM lyric_lang WHERE track_id = ?`, l.TrackID); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -109,14 +113,15 @@ func (s *Store) DeleteLyrics(ctx context.Context, trackIDs []int64) error {
 		return nil
 	}
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		stmt, err := tx.PrepareContext(ctx, `DELETE FROM lyrics WHERE track_id = ?`)
-		if err != nil {
-			return err
-		}
-		defer stmt.Close()
 		for _, id := range trackIDs {
-			if _, err := stmt.ExecContext(ctx, id); err != nil {
-				return err
+			for _, q := range []string{
+				`DELETE FROM lyrics WHERE track_id = ?`,
+				`DELETE FROM lyric_lang WHERE track_id = ?`,
+				`DELETE FROM lyric_embeddings WHERE track_id = ?`,
+			} {
+				if _, err := tx.ExecContext(ctx, q, id); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
