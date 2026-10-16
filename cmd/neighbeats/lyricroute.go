@@ -40,19 +40,23 @@ type lyricSignals struct {
 	opt   lyricOptions
 }
 
-// loadLyricSignals reads the lyric vectors and languages. It returns nil when
-// there are no lyric vectors (routes then use audio alone) unless a theme was
-// asked for, which needs them.
-func loadLyricSignals(ctx context.Context, st *store.Store, cfg *config.Config, ax *vecindex.Index,
-	opt lyricOptions, stderr io.Writer) (*lyricSignals, error) {
+// lyricBase is the part of the lyric signals that depends only on the
+// library: built once per run, or once per reload by `serve`.
+type lyricBase struct {
+	lx    *vecindex.Index
+	langs map[int64]string
+	mu    float64 // mean lyric cosine between audio neighbours
+}
+
+// loadLyricBase reads the lyric vectors and languages and calibrates the
+// blend against the audio index. It returns nil when there are no lyric
+// vectors.
+func loadLyricBase(ctx context.Context, st *store.Store, ax *vecindex.Index) (*lyricBase, error) {
 	embs, err := st.LyricEmbeddings(ctx, textembed.ModelID)
 	if err != nil {
 		return nil, err
 	}
 	if len(embs) == 0 {
-		if opt.theme != "" {
-			return nil, errors.New("-theme needs lyric vectors: run `neighbeats embed-lyrics` first")
-		}
 		return nil, nil
 	}
 	ids := make([]int64, len(embs))
@@ -73,12 +77,24 @@ func loadLyricSignals(ctx context.Context, st *store.Store, cfg *config.Config, 
 			delete(langs, id)
 		}
 	}
-	s := &lyricSignals{lx: lx, langs: langs, opt: opt}
-	if opt.weight > 0 {
-		if s.mu, err = calibrate(ax, lx); err != nil {
-			return nil, err
-		}
+	mu, err := calibrate(ax, lx)
+	if err != nil {
+		return nil, err
 	}
+	return &lyricBase{lx: lx, langs: langs, mu: mu}, nil
+}
+
+// signals combines the library's lyric data with one route's options. It
+// returns nil when there are no lyric vectors (routes then use audio alone)
+// unless a theme was asked for, which needs them.
+func (b *lyricBase) signals(cfg *config.Config, opt lyricOptions, stderr io.Writer) (*lyricSignals, error) {
+	if b == nil {
+		if opt.theme != "" {
+			return nil, queryError{errors.New("-theme needs lyric vectors: run `neighbeats embed-lyrics` first")}
+		}
+		return nil, nil
+	}
+	s := &lyricSignals{lx: b.lx, langs: b.langs, mu: b.mu, opt: opt}
 	if opt.theme != "" {
 		m, err := openTextModel(cfg, string(embed.ProviderCPU), nil) // one phrase: the CPU is plenty
 		if err != nil {
@@ -89,11 +105,11 @@ func loadLyricSignals(ctx context.Context, st *store.Store, cfg *config.Config, 
 		if err != nil {
 			return nil, err
 		}
-		if s.theme, err = lx.Project(v[0]); err != nil {
+		if s.theme, err = b.lx.Project(v[0]); err != nil {
 			return nil, err
 		}
 	}
-	fmt.Fprintf(stderr, "lyrics: %d tracks with vectors, %d with a known language", lx.Len(), len(langs))
+	fmt.Fprintf(stderr, "lyrics: %d tracks with vectors, %d with a known language", b.lx.Len(), len(b.langs))
 	if opt.weight > 0 {
 		fmt.Fprintf(stderr, ", blend %.2f (typical neighbour %.2f)", opt.weight, s.mu)
 	}

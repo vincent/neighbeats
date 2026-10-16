@@ -158,6 +158,10 @@ var migrations = []string{
 		updated_at INTEGER NOT NULL,
 		PRIMARY KEY (track_id, model)
 	);`,
+
+	// v6: `serve` answers with Jellyfin item ids, so the item cache is also
+	// read from the track side.
+	`CREATE INDEX jellyfin_items_track ON jellyfin_items(track_id) WHERE track_id IS NOT NULL;`,
 }
 
 // Store is a handle on the database.

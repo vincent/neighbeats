@@ -18,6 +18,11 @@ path_map:
 #   url: https://jellyfin.example.org
 #   user: vincent
 
+# API for media-server plugins (`systemctl enable --now neighbeats-serve`), see
+# /usr/share/doc/neighbeats/api.md. Default shown; systemd creates the folder.
+# serve:
+#   socket: /run/neighbeats/neighbeats.sock
+
 model_path: /var/lib/neighbeats/models/discogs-effnet-bsdynamic-1.onnx
 lyric_model_dir: /var/lib/neighbeats/models/multilingual-e5-small
 

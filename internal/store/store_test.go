@@ -354,3 +354,39 @@ func TestBackup(t *testing.T) {
 		t.Fatal("overwrote an existing backup")
 	}
 }
+
+func TestItemLookups(t *testing.T) {
+	st, ctx := open(t), context.Background()
+	run, _ := st.StartRun(ctx, []string{"/m"})
+	if err := st.UpsertTracks(ctx, run, []Track{track("/m/a.mp3"), track("/m/b.mp3")}); err != nil {
+		t.Fatal(err)
+	}
+	a, ok, err := st.TrackByPath(ctx, "/m/a.mp3")
+	if err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	if _, ok, _ := st.TrackByPath(ctx, "/m/none.mp3"); ok {
+		t.Error("unknown path resolved")
+	}
+	// Two items for the same file: the smallest id wins, stably.
+	if err := st.SaveItemTracks(ctx, map[string]int64{"zz": a, "aa": a, "gone": 0}); err != nil {
+		t.Fatal(err)
+	}
+	if id, ok, _ := st.ItemTrack(ctx, "zz"); !ok || id != a {
+		t.Errorf("item zz: %d %v", id, ok)
+	}
+	if _, ok, _ := st.ItemTrack(ctx, "gone"); ok {
+		t.Error("an item cached as unmatched must not resolve")
+	}
+	got, err := st.TrackItems(ctx, []int64{a, a + 1})
+	if err != nil || len(got) != 1 || got[a] != "aa" {
+		t.Errorf("%v %v", got, err)
+	}
+	s1, _ := st.IndexStamp(ctx, "m", "l")
+	if err := st.SaveEmbedding(ctx, Embedding{TrackID: a, Model: "m", Vector: []float32{1}, Size: 1, MtimeNs: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if s2, _ := st.IndexStamp(ctx, "m", "l"); s2 == s1 {
+		t.Errorf("stamp unchanged after a new embedding: %s", s2)
+	}
+}

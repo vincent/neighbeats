@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"strings"
 	"time"
 )
 
@@ -132,6 +134,59 @@ func (s *Store) SaveItemTracks(ctx context.Context, m map[string]int64) error {
 		}
 		return nil
 	})
+}
+
+// ItemTrack returns the cached track of one Jellyfin item; ok is false when
+// the item was never seen or matched no indexed track.
+func (s *Store) ItemTrack(ctx context.Context, itemID string) (id int64, ok bool, err error) {
+	err = s.db.QueryRowContext(ctx, `SELECT track_id FROM jellyfin_items
+		WHERE item_id = ? AND track_id IS NOT NULL`, itemID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
+}
+
+// TrackItems returns a Jellyfin item id for each of the tracks that has one.
+// When several items are the same file, the smallest id is taken so the
+// answer is stable.
+func (s *Store) TrackItems(ctx context.Context, ids []int64) (map[int64]string, error) {
+	out := make(map[int64]string, len(ids))
+	const chunk = 500 // stay well below SQLite's variable limit
+	for start := 0; start < len(ids); start += chunk {
+		part := ids[start:min(start+chunk, len(ids))]
+		args := make([]any, len(part))
+		for i, id := range part {
+			args[i] = id
+		}
+		rows, err := s.db.QueryContext(ctx, `SELECT track_id, MIN(item_id) FROM jellyfin_items
+			WHERE track_id IN (?`+strings.Repeat(",?", len(part)-1)+`) GROUP BY track_id`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id int64
+			var item string
+			if err := rows.Scan(&id, &item); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id] = item
+		}
+		if err := rows.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// TrackByPath returns the id of the track stored under this exact path.
+func (s *Store) TrackByPath(ctx context.Context, path string) (id int64, ok bool, err error) {
+	err = s.db.QueryRowContext(ctx, `SELECT id FROM tracks WHERE path = ?`, path).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	return id, err == nil, err
 }
 
 // PlayEvent is one listening event from Playback Reporting.

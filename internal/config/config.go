@@ -37,6 +37,9 @@ type Config struct {
 	// key is read from $NEIGHBEATS_JELLYFIN_KEY, never from this file.
 	Jellyfin Jellyfin `yaml:"jellyfin"`
 
+	// Serve is where `neighbeats serve` listens for media-server plugins.
+	Serve Serve `yaml:"serve"`
+
 	// ModelPath is the Discogs-EffNet ONNX file used by `analyze`.
 	ModelPath string `yaml:"model_path"`
 	// LyricModelDir holds model.onnx and tokenizer.json of multilingual-e5-small,
@@ -63,6 +66,16 @@ type Jellyfin struct {
 	// User is the default account (name) for sync-jellyfin and path; the
 	// commands' -user flag overrides it.
 	User string `yaml:"user"`
+}
+
+// DefaultSocket is where `serve` listens unless the config says otherwise.
+const DefaultSocket = "/run/neighbeats/neighbeats.sock"
+
+// Serve configures the local API used by media-server plugins.
+type Serve struct {
+	// Socket is the Unix socket path. Whoever can write to it can ask for
+	// playlists, so share its folder only with the media server.
+	Socket string `yaml:"socket"`
 }
 
 // SystemConfig is where the Debian package puts the config.
@@ -170,6 +183,9 @@ func (c *Config) applyDefaults() error {
 	}
 	if _, err := pathmap.New(c.PathMap); err != nil {
 		return err
+	}
+	if c.Serve.Socket == "" {
+		c.Serve.Socket = DefaultSocket
 	}
 	c.Jellyfin.URL = strings.TrimRight(strings.TrimSpace(c.Jellyfin.URL), "/")
 	if u := c.Jellyfin.URL; u != "" && !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {

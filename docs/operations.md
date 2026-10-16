@@ -93,6 +93,38 @@ Create a scheduled task that runs as the user who owns the folder, with the comm
 (Synology: Control Panel, Task Scheduler, User-defined script; Unraid: User Scripts plugin).
 Enable the mail-on-error option so a failed run is noticed.
 
+## Plugin API: `serve`
+
+`neighbeats serve` is the long-running part: it keeps the index in memory and answers
+playlist requests from a media-server plugin over a Unix socket (protocol: [api.md](api.md)).
+It reloads the index by itself when `update` changed it, so the nightly update and the
+server run side by side. Run `sync-jellyfin` (or `update`) at least once so answers carry
+Jellyfin item ids; tracks added since the last sync come back with their path only.
+
+Docker, with Jellyfin in a sibling container:
+
+```sh
+mkdir run                                    # before the first start, so you own it, not root
+docker compose up -d neighbeats-serve        # socket: ./run/neighbeats.sock
+```
+
+Mount the same folder into Jellyfin's container, at the path the plugin is configured with
+(`/path/to/neighbeats/run:/run/neighbeats`), and give both containers the same group (`PGID`).
+The socket is `0660`, so only that user and group may connect. Logs: `docker compose logs -f
+neighbeats-serve`, one line per request.
+
+Debian package, Jellyfin installed natively:
+
+```sh
+sudo usermod -aG neighbeats jellyfin         # lets Jellyfin open /run/neighbeats/neighbeats.sock
+sudo systemctl restart jellyfin
+sudo systemctl enable --now neighbeats-serve
+```
+
+Check from the Jellyfin side: `curl --unix-socket /run/neighbeats/neighbeats.sock
+http://neighbeats/v1/health` (in the container: `docker exec jellyfin curl ...`). The socket
+path must be at most 107 bytes long, a limit of Unix sockets.
+
 ## Backups
 
 `neighbeats backup` writes a consistent copy of the database (safe while something else is

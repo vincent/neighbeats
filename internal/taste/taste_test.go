@@ -8,6 +8,7 @@ import (
 	"github.com/vincent/neighbeats/internal/jellyfin"
 	"github.com/vincent/neighbeats/internal/pathmap"
 	"github.com/vincent/neighbeats/internal/store"
+	"github.com/vincent/neighbeats/internal/tags"
 )
 
 var now = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
@@ -77,15 +78,18 @@ func TestParseMode(t *testing.T) {
 }
 
 type fakeAPI struct {
-	played, favs []jellyfin.Item
-	byID         map[string]jellyfin.Item
-	events       []jellyfin.PlayEvent
-	noPlugin     bool
+	all, played, favs []jellyfin.Item
+	byID              map[string]jellyfin.Item
+	events            []jellyfin.PlayEvent
+	noPlugin          bool
 }
 
 func (f fakeAPI) UserItems(_ context.Context, _, filter string) ([]jellyfin.Item, error) {
-	if filter == "IsFavorite" {
+	switch filter {
+	case "IsFavorite":
 		return f.favs, nil
+	case "":
+		return f.all, nil
 	}
 	return f.played, nil
 }
@@ -168,5 +172,40 @@ func TestSync(t *testing.T) {
 	api.noPlugin = true
 	if rep, err := Sync(ctx, st, api, user, pm); err != nil || !rep.PluginMissing {
 		t.Errorf("missing plugin must not fail the sync: %+v %v", rep, err)
+	}
+}
+
+func TestSyncItems(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(t.TempDir() + "/db.sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	run, _ := st.StartRun(ctx, []string{"/music"})
+	if err := st.UpsertTracks(ctx, run, []store.Track{
+		{Path: "/music/a.mp3", Size: 1, MtimeNs: 1, Format: "mp3"},
+		{Path: "/music/b.mp3", Size: 1, MtimeNs: 1, Format: "mp3", Info: tags.Info{MBIDRecording: "rec-b"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pm, _ := pathmap.New([]pathmap.Mapping{{Local: "/music", Remote: "/media/Music"}})
+	api := fakeAPI{all: []jellyfin.Item{
+		item("i1", "/media/Music/a.mp3", "", 0, false),
+		item("i2", "/moved/b.mp3", "rec-b", 0, false), // by MBID
+		item("i3", "/elsewhere/z.mp3", "", 0, false),
+	}}
+	rep, err := SyncItems(ctx, st, api, jellyfin.User{ID: "u1", Name: "V"}, pm)
+	if err != nil || rep.Items != 3 || rep.Matched != 2 || rep.Unmatched != 1 {
+		t.Fatalf("%+v %v", rep, err)
+	}
+	a, _, _ := st.TrackByPath(ctx, "/music/a.mp3")
+	b, _, _ := st.TrackByPath(ctx, "/music/b.mp3")
+	got, err := st.TrackItems(ctx, []int64{a, b})
+	if err != nil || got[a] != "i1" || got[b] != "i2" {
+		t.Errorf("%v %v", got, err)
+	}
+	if id, ok, _ := st.ItemTrack(ctx, "i3"); ok || id != 0 {
+		t.Errorf("unmatched item must not resolve: %d", id)
 	}
 }

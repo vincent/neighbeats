@@ -9,8 +9,10 @@ Ideas worth keeping, none of them committed to.
 - **Journey stages**: "calm then energetic then forgotten" as waypoints, as in
   the reference project's journey designer.
 - **Live replanning** when playing through a Jellyfin client: replan the tail after
-  a skip. Needs a way to see playback, so probably a small server mode.
-- **Navidrome/Jellyfin playlist push** instead of files.
+  a skip. `serve` ([api.md](../api.md)) is the server mode it needs; the plugin would
+  report the skip and ask again from the current track.
+- **Jellyfin plugin** (separate repository): calls `serve` and builds the playlist from
+  the returned item ids. Navidrome or others would need their own glue, the API is generic.
 - **Transition quality**: key and tempo compatibility, crossfade hints in M3U8
   extended tags.
 - **Sample/cover databases**: no open WhoSampled equivalent was found; MusicBrainz

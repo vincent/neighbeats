@@ -147,14 +147,18 @@ type itemsPage struct {
 }
 
 // UserItems returns every audio item of the user matching the filter
-// ("IsPlayed" or "IsFavorite"), with paths, provider ids and play data.
+// ("IsPlayed" or "IsFavorite"; "" for all of them), with paths, provider ids
+// and play data.
 func (c *Client) UserItems(ctx context.Context, userID, filter string) ([]Item, error) {
 	var all []Item
 	for start := 0; ; start += pageSize {
 		q := url.Values{
 			"userId": {userID}, "IncludeItemTypes": {"Audio"}, "Recursive": {"true"},
-			"Fields": {"Path,ProviderIds"}, "Filters": {filter}, "SortBy": {"SortName"},
+			"Fields": {"Path,ProviderIds"}, "SortBy": {"SortName"},
 			"StartIndex": {strconv.Itoa(start)}, "Limit": {strconv.Itoa(pageSize)},
+		}
+		if filter != "" {
+			q.Set("Filters", filter)
 		}
 		var p itemsPage
 		if err := c.do(ctx, http.MethodGet, "/Items", q, nil, &p); err != nil {

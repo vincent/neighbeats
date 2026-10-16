@@ -4,7 +4,9 @@ Playlists that travel from one song to another, built from your own library.
 
 Give it two songs and it finds a path of tracks that drifts from the first
 to the second, one small step at a time. It is a CLI with no UI, meant to run
-on a NAS next to a Jellyfin server and to write plain M3U8 files.
+on a NAS next to a Jellyfin server and to write plain M3U8 files, or to answer a
+media-server plugin through `neighbeats serve` (a local API on a Unix socket, see
+[docs/api.md](docs/api.md)).
 
 Library size this is built for: about 25,000 tracks.
 
@@ -37,6 +39,10 @@ docker compose run --rm neighbeats lyrics langs -samples 5    # detected lyric l
 docker compose run --rm neighbeats embed-lyrics         # lyric vectors (needs the lyric model, below)
 docker compose run --rm neighbeats path -theme "sea, night" -length 15 "song a" "song b"
 docker compose run --rm neighbeats path -from-lyric "walking by the ocean" -to-id 123 -length 15
+```
+
+```sh
+mkdir run && docker compose up -d neighbeats-serve   # API for a Jellyfin plugin, socket in ./run (docs/api.md)
 ```
 
 GPU: for an NVIDIA card uncomment the `deploy` block in `compose.yaml` (needs the NVIDIA container

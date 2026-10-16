@@ -115,6 +115,40 @@ func Sync(ctx context.Context, st *store.Store, api API, user jellyfin.User, pm 
 	return rep, nil
 }
 
+// ItemsReport says what SyncItems did.
+type ItemsReport struct {
+	Items     int // audio items in the user's Jellyfin library
+	Matched   int
+	Unmatched int
+}
+
+// SyncItems caches the indexed track of every audio item the user can see,
+// so `serve` can answer with Jellyfin item ids for any track of a route, not
+// only for ones with history.
+func SyncItems(ctx context.Context, st *store.Store, api API, user jellyfin.User, pm *pathmap.Mapper) (ItemsReport, error) {
+	var rep ItemsReport
+	items, err := api.UserItems(ctx, user.ID, "")
+	if err != nil {
+		return rep, err
+	}
+	m, err := newMatcher(ctx, st, pm)
+	if err != nil {
+		return rep, err
+	}
+	cache := make(map[string]int64, len(items))
+	for _, it := range items {
+		id, _ := m.match(it)
+		cache[it.ID] = id
+		if id != 0 {
+			rep.Matched++
+		} else {
+			rep.Unmatched++
+		}
+	}
+	rep.Items = len(items)
+	return rep, st.SaveItemTracks(ctx, cache)
+}
+
 func syncEvents(ctx context.Context, st *store.Store, api API, user jellyfin.User, m *matcher) (int, error) {
 	last, err := st.LastPlayEventMs(ctx, Key(user.Name))
 	if err != nil {

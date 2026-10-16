@@ -74,10 +74,14 @@ nfpms:
         dst: /lib/systemd/system/neighbeats-update.service
       - src: packaging/neighbeats-update.timer
         dst: /lib/systemd/system/neighbeats-update.timer
+      - src: packaging/neighbeats-serve.service
+        dst: /lib/systemd/system/neighbeats-serve.service
       - src: config.example.yaml
         dst: /usr/share/doc/neighbeats/config.example.yaml
       - src: docs/operations.md
         dst: /usr/share/doc/neighbeats/operations.md
+      - src: docs/api.md
+        dst: /usr/share/doc/neighbeats/api.md
       - src: README.md
         dst: /usr/share/doc/neighbeats/README.md
       - src: LICENSE

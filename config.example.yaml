@@ -38,6 +38,13 @@ path_map:
 #   url: https://jellyfin.example.org
 #   user: vincent        # default account; -user overrides, one history per user
 
+# --- serve: API for media-server plugins (docs/api.md) -------------------------
+
+# Unix socket `neighbeats serve` listens on. compose.yaml mounts ./run here; share
+# that folder (and the group) with the Jellyfin container.
+# serve:
+#   socket: /run/neighbeats/neighbeats.sock
+
 # --- analyze (M1): music embeddings -------------------------------------------
 
 # Discogs-EffNet ONNX model (https://essentia.upf.edu/models/feature-extractors/discogs-effnet/

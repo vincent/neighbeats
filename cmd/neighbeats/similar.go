@@ -26,27 +26,6 @@ const defaultK = 2.3
 // DJ mixes or radio shows.
 const defaultMaxMinutes = 15
 
-// longTracks returns a filter for tracks longer than maxMin minutes (nil when
-// the limit is off) and how many embedded tracks it removes. Unknown
-// durations are kept.
-func longTracks(ctx context.Context, st *store.Store, maxMin float64) (func(int64) bool, int, error) {
-	if maxMin <= 0 {
-		return nil, 0, nil
-	}
-	durations, err := st.Durations(ctx, embed.ModelID)
-	if err != nil {
-		return nil, 0, err
-	}
-	limit := maxMin * 60
-	n := 0
-	for _, d := range durations {
-		if d > limit {
-			n++
-		}
-	}
-	return func(id int64) bool { return durations[id] > limit }, n, nil
-}
-
 // loadIndex reads every embedding of the current model into memory.
 func loadIndex(ctx context.Context, st *store.Store, raw bool) (*vecindex.Index, error) {
 	embs, err := st.Embeddings(ctx, embed.ModelID)
@@ -96,26 +75,14 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	}
 
 	t0 := time.Now()
-	ix, err := loadIndex(ctx, st, *raw)
+	lib, err := loadLibrary(ctx, st, *raw, false)
 	if err != nil {
 		return err
 	}
 	load := time.Since(t0)
 
-	exclude, nLong, err := longTracks(ctx, st, *maxMin)
-	if err != nil {
-		return err
-	}
-	filter := vecindex.Filter{Exclude: exclude}
-	if *perArtist > 0 || !*adjacent {
-		keys, err := st.ArtistKeys(ctx)
-		if err != nil {
-			return err
-		}
-		filter = vecindex.Filter{MaxPerArtist: *perArtist, NoAdjacent: !*adjacent, Group: func(id int64) string { return keys[id] }, Exclude: exclude}
-	}
 	t0 = time.Now()
-	hits, err := ix.Search(seed, *n, filter)
+	hits, nLong, err := findSimilar(lib, similarQuery{seed: seed, n: *n, perArtist: *perArtist, adjacent: *adjacent, maxMinutes: *maxMin})
 	if err != nil {
 		return err
 	}
@@ -141,7 +108,7 @@ func cmdSimilar(ctx context.Context, cfgPath string, args []string, stdout, stde
 	if nLong > 0 {
 		fmt.Fprintf(stderr, "left out %d tracks longer than %g min (-max-minutes)\n", nLong, *maxMin)
 	}
-	fmt.Fprintf(stderr, "searched %d tracks in %s (index load %s)\n", ix.Len(), search.Round(100*time.Microsecond), load.Round(time.Millisecond))
+	fmt.Fprintf(stderr, "searched %d tracks in %s (index load %s)\n", lib.ix.Len(), search.Round(100*time.Microsecond), load.Round(time.Millisecond))
 	return nil
 }
 

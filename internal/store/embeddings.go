@@ -158,3 +158,16 @@ func (s *Store) Durations(ctx context.Context, model string) (map[int64]float64,
 	}
 	return out, rows.Err()
 }
+
+// IndexStamp summarises what the in-memory indexes are built from: tracks,
+// audio and lyric vectors. Any scan, analyze or embed-lyrics run that changes
+// something changes the stamp, so a long-running reader knows to reload.
+func (s *Store) IndexStamp(ctx context.Context, audioModel, lyricModel string) (string, error) {
+	var stamp string
+	err := s.db.QueryRowContext(ctx, `SELECT
+		(SELECT COALESCE(MAX(id), 0) FROM scan_runs) || '/' ||
+		(SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), 0) FROM embeddings WHERE model = ?) || '/' ||
+		(SELECT COUNT(*) || ':' || COALESCE(MAX(updated_at), 0) FROM lyric_embeddings WHERE model = ?)`,
+		audioModel, lyricModel).Scan(&stamp)
+	return stamp, err
+}

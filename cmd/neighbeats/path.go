@@ -109,83 +109,34 @@ func cmdPath(ctx context.Context, cfgPath string, args []string, stdout, stderr 
 	}
 
 	t0 := time.Now()
-	ix, err := loadIndex(ctx, st, *raw)
+	lib, err := loadLibrary(ctx, st, *raw, true)
 	if err != nil {
 		return err
-	}
-	artists, err := st.ArtistKeys(ctx)
-	if err != nil {
-		return err
-	}
-	songs, err := st.DedupeKeys(ctx)
-	if err != nil {
-		return err
-	}
-	group := func(id int64) string { return artists[id] }
-	opt := route.Options{
-		Neighbours: *nbrs, MaxHops: *hops, MaxExpand: *expand, Hop: *hop,
-		Base: def.Base, Scale: def.Scale, K: def.K, Heuristic: def.Heuristic,
-		MaxPerArtist: *perArtist, Group: group, Smooth: *smooth, Beam: *beam,
-		Key:       func(id int64) string { return songs[id] },
-		Forbidden: map[int64]bool{},
-	}
-	for _, name := range strings.Split(*avoid, ",") {
-		if name = strings.TrimSpace(name); name == "" {
-			continue
-		}
-		ids, err := st.TrackIDsByArtist(ctx, name)
-		if err != nil {
-			return err
-		}
-		if len(ids) == 0 {
-			fmt.Fprintf(stderr, "warning: no artist matches %q\n", name)
-		}
-		for _, id := range ids {
-			opt.Forbidden[id] = true
-		}
 	}
 	load := time.Since(t0)
 
-	if err := applyTaste(ctx, st, cfg, *userName, *modeName, &opt, stderr); err != nil {
-		return err
-	}
-	lyr, err := loadLyricSignals(ctx, st, cfg, ix, lyricOptions{
-		weight: *lyricWeight, langPenalty: *langPenalty, themeWeight: *themeWeight, theme: *theme,
+	t0 = time.Now()
+	r, lyr, err := planPath(ctx, st, cfg, lib, pathQuery{
+		from: a, to: b, length: *length,
+		opt: route.Options{
+			Neighbours: *nbrs, MaxHops: *hops, MaxExpand: *expand, Hop: *hop,
+			Base: def.Base, Scale: def.Scale, K: def.K, Heuristic: def.Heuristic,
+			MaxPerArtist: *perArtist, Smooth: *smooth, Beam: *beam,
+		},
+		maxMinutes: *maxMin, avoid: strings.Split(*avoid, ","),
+		user: *userName, mode: *modeName,
+		lyric: lyricOptions{weight: *lyricWeight, langPenalty: *langPenalty, themeWeight: *themeWeight, theme: *theme},
 	}, stderr)
 	if err != nil {
 		return err
 	}
-	lyr.apply(&opt)
+	took := time.Since(t0)
 	var shared func(a, b int64) []string
 	if lyr != nil && *explain {
 		if shared, err = sharedWords(ctx, st); err != nil {
 			return err
 		}
 	}
-
-	exclude, nLong, err := longTracks(ctx, st, *maxMin)
-	if err != nil {
-		return err
-	}
-	if nLong > 0 {
-		fmt.Fprintf(stderr, "left out %d tracks longer than %g min (-max-minutes)\n", nLong, *maxMin)
-	}
-
-	t0 = time.Now()
-	g := cappedGraph{ix: ix, filter: vecindex.Filter{MaxPerArtist: 2, Group: group, Exclude: exclude}}
-	var r route.Route
-	if *length > 0 {
-		r, err = route.Spread(g, a, b, *length, opt)
-	} else {
-		r, err = route.Find(g, a, b, opt)
-	}
-	if err != nil {
-		if errors.Is(err, route.ErrSame) {
-			return errors.New("start and destination are the same track")
-		}
-		return err
-	}
-	took := time.Since(t0)
 
 	ids := make([]int64, len(r.Steps))
 	for i, s := range r.Steps {
@@ -254,7 +205,7 @@ func applyTaste(ctx context.Context, st *store.Store, cfg *config.Config, userNa
 	}
 	mode, err := taste.ParseMode(modeName)
 	if err != nil {
-		return err
+		return queryError{err}
 	}
 	if mode == taste.None {
 		return nil
@@ -264,7 +215,7 @@ func applyTaste(ctx context.Context, st *store.Store, cfg *config.Config, userNa
 	}
 	if userName == "" {
 		if explicit {
-			return errors.New("which user's history? pass -user NAME or set jellyfin.user in the config")
+			return queryError{errors.New("which user's history? pass -user NAME or set jellyfin.user in the config")}
 		}
 		return nil
 	}
@@ -278,7 +229,7 @@ func applyTaste(ctx context.Context, st *store.Store, cfg *config.Config, userNa
 	}
 	if len(prof.ByTrack) == 0 {
 		if explicit {
-			return fmt.Errorf("no history stored for %q: run `neighbeats sync-jellyfin` first", userName)
+			return queryError{fmt.Errorf("no history stored for %q: run `neighbeats sync-jellyfin` first", userName)}
 		}
 		return nil
 	}

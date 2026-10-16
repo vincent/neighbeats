@@ -41,6 +41,7 @@ Commands:
   onboard   first-run setup, asks before changing anything: [-yes] [-remote P] [-provider auto|cpu] [-no-models]
   update    the one to schedule: backup, scan, analyze, embed-lyrics, sync-jellyfin (each step incremental; optional ones skipped if not set up): [-no-backup] [-keep N]
   backup    safe copy of the database to data/backups, keeping the newest N: [-dir D] [-keep N]
+  serve     answer playlist requests from media-server plugins on a Unix socket (see docs/api.md): [-socket PATH] [-socket-mode 0660]
   stats     show what the index contains
   version   print the version
 
@@ -96,6 +97,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		err = cmdUpdate(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "backup":
 		err = cmdBackup(ctx, *cfgPath, cmdArgs, stdout, stderr)
+	case "serve":
+		err = cmdServe(ctx, *cfgPath, cmdArgs, stdout, stderr)
 	case "stats":
 		err = cmdStats(ctx, *cfgPath, stdout)
 	case "help", "-h", "--help":

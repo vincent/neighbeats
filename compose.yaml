@@ -52,3 +52,24 @@ services:
     #         - driver: nvidia
     #           count: 1
     #           capabilities: [gpu]
+
+  # Long-running API for media-server plugins (docs/api.md): `mkdir run` once, then
+  # `docker compose up -d neighbeats-serve`. The socket appears in ./run; mount that
+  # folder into the Jellyfin container too (e.g. `- /path/to/neighbeats/run:/run/neighbeats`)
+  # and run Jellyfin with the same PGID so it may open the socket (mode 0660).
+  # It reloads the index by itself after `update`; no GPU needed.
+  neighbeats-serve:
+    image: ghcr.io/vincent/neighbeats:${NEIGHBEATS_TAG:-main}
+    command: serve
+    restart: unless-stopped
+    environment:
+      NEIGHBEATS_CONFIG: /config/config.yaml
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./data:/data
+      - ./models:/models:ro
+      - ./run:/run/neighbeats
+    user: "${PUID:-1000}:${PGID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp

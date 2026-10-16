@@ -75,5 +75,10 @@ func cmdSyncJellyfin(ctx context.Context, cfgPath string, args []string, stdout,
 	default:
 		fmt.Fprintf(stdout, "  %d new play events\n", rep.NewEvents)
 	}
+	items, err := taste.SyncItems(ctx, st, client, user, cfg.PathMapper())
+	if err != nil {
+		return fmt.Errorf("item ids for serve: %w", err)
+	}
+	fmt.Fprintf(stdout, "  item ids: %d audio items, %d matched an indexed track\n", items.Items, items.Matched)
 	return nil
 }

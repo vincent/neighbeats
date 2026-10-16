@@ -1,0 +1,23 @@
+[Unit]
+Description=neighbeats plugin API (playlists for Jellyfin, over a Unix socket)
+Documentation=https://github.com/vincent/neighbeats/blob/main/docs/api.md
+ConditionPathExists=/etc/neighbeats/config.yaml
+
+[Service]
+User=neighbeats
+Group=neighbeats
+Environment=NEIGHBEATS_CONFIG=/etc/neighbeats/config.yaml
+# /run/neighbeats, owned by neighbeats. The socket is 0660: add the media server's
+# user to the neighbeats group (`usermod -aG neighbeats jellyfin`) so it may connect.
+RuntimeDirectory=neighbeats
+RuntimeDirectoryMode=0750
+ExecStart=/usr/bin/neighbeats serve
+Restart=on-failure
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/neighbeats
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
